@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>LayupPulse.Desktop</RootNamespace>
+    <AssemblyName>LayupPulse.Desktop</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
+    <ProjectReference Include="..\LayupPulse.Application\LayupPulse.Application.csproj" />
+    <ProjectReference Include="..\LayupPulse.Infrastructure\LayupPulse.Infrastructure.csproj" />
+    <ProjectReference Include="..\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LayupPulse.Simulator</RootNamespace>
+    <AssemblyName>LayupPulse.Simulator</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
+    <ProjectReference Include="..\LayupPulse.Application\LayupPulse.Application.csproj" />
+    <ProjectReference Include="..\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
+  </ItemGroup>
+</Project>

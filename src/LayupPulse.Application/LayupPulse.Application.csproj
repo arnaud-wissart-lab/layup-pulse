@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LayupPulse.Application</RootNamespace>
+    <AssemblyName>LayupPulse.Application</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
+  </ItemGroup>
+</Project>

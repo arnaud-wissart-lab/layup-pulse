@@ -1,0 +1,36 @@
+<Window x:Class="LayupPulse.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
+        Title="LayupPulse"
+        Width="1280"
+        Height="720"
+        MinWidth="960"
+        MinHeight="540"
+        WindowStartupLocation="CenterScreen"
+        Background="#111820"
+        Foreground="#E6EDF3">
+  <Grid automation:AutomationProperties.Name="LayupPulse application shell">
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+      <TextBlock HorizontalAlignment="Center"
+                 FontSize="36"
+                 FontWeight="SemiBold"
+                 Text="LAYUPPULSE" />
+      <TextBlock Margin="0,10,0,24"
+                 HorizontalAlignment="Center"
+                 Foreground="#9EABB7"
+                 FontSize="17"
+                 Text="Industrial layup cell demonstrator" />
+      <Border Padding="18,10"
+              HorizontalAlignment="Center"
+              Background="#18242F"
+              BorderBrush="#2B3C4B"
+              BorderThickness="1"
+              CornerRadius="4">
+        <TextBlock Foreground="#6BD6A6"
+                   Text="Project foundation ready" />
+      </Border>
+    </StackPanel>
+  </Grid>
+</Window>
