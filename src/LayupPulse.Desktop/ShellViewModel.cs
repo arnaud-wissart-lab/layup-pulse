@@ -25,12 +25,14 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         IMachineSessionService sessionService,
         IUiDispatcher dispatcher,
         OverviewViewModel overview,
-        DiagnosticsViewModel diagnostics)
+        DiagnosticsViewModel diagnostics,
+        AlarmsViewModel alarms)
     {
         _sessionService = sessionService;
         _dispatcher = dispatcher;
         Overview = overview;
         Diagnostics = diagnostics;
+        Alarms = alarms;
 
         NavigationItems =
         [
@@ -38,10 +40,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             new NavigationItemViewModel(
                 "Alarmes",
                 "!",
-                new PlaceholderPageViewModel(
-                    "Alarmes",
-                    "La gestion des alarmes n’est pas implémentée dans cet incrément.",
-                    "!")),
+                alarms),
             new NavigationItemViewModel(
                 "Historique",
                 "▤",
@@ -63,6 +62,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     public OverviewViewModel Overview { get; }
 
     public DiagnosticsViewModel Diagnostics { get; }
+
+    public AlarmsViewModel Alarms { get; }
 
     public NavigationItemViewModel? SelectedNavigation
     {
@@ -171,5 +172,6 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             : $"{state.LatestTelemetry.CycleProgressPercentage:F1} %";
         Overview.ApplyState(state);
         Diagnostics.ApplyState(state);
+        Alarms.ApplyState(state);
     }
 }

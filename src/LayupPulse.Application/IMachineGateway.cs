@@ -11,6 +11,11 @@ public interface IMachineGateway : IAsyncDisposable
 
     public Task DisconnectAsync(IMachineSession session, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Libère une session cliente devenue inutilisable sans envoyer de commande à la machine distante.
+    /// </summary>
+    public ValueTask AbandonAsync(IMachineSession session);
+
     public Task<CommandResult> ExecuteCommandAsync(
         IMachineSession session,
         MachineCommand command,

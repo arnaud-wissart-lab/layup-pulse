@@ -29,7 +29,8 @@ public sealed class TransportMapperTests
             143.8,
             6.02,
             37.5,
-            98.2);
+            98.2,
+            [DomainFaultType.HighTemperature]);
 
         // Action
         TelemetryMessage transport = domain.ToTransport([DomainFaultType.HighTemperature]);

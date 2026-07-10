@@ -257,6 +257,7 @@ public sealed class OverviewViewModel : ObservableObject
         {
             MachineConnectionStatus.Connected when telemetry is not null => "Télémétrie fraîche",
             MachineConnectionStatus.Stale => "Attention : les dernières valeurs sont conservées mais périmées.",
+            MachineConnectionStatus.Reconnecting => "Reconnexion automatique en cours ; les dernières valeurs sont conservées.",
             MachineConnectionStatus.Connecting => "En attente du premier état machine…",
             _ => "Valeurs indisponibles tant que la session n’est pas connectée.",
         };
@@ -337,7 +338,10 @@ public sealed class OverviewViewModel : ObservableObject
 
     private bool CanDisconnect() =>
         !IsOperationInProgress
-        && _sessionState.ConnectionStatus is MachineConnectionStatus.Connected or MachineConnectionStatus.Stale;
+        && _sessionState.ConnectionStatus is
+            MachineConnectionStatus.Connected
+            or MachineConnectionStatus.Stale
+            or MachineConnectionStatus.Reconnecting;
 
     private bool CanExecuteMachineCommand(MachineCommandType commandType) =>
         !IsOperationInProgress
@@ -359,6 +363,11 @@ public sealed class OverviewViewModel : ObservableObject
         if (_sessionState.ConnectionStatus == MachineConnectionStatus.Stale)
         {
             return "La télémétrie est périmée : seule la déconnexion est proposée.";
+        }
+
+        if (_sessionState.ConnectionStatus == MachineConnectionStatus.Reconnecting)
+        {
+            return "Reconnexion automatique en cours : la déconnexion reste disponible.";
         }
 
         List<string> commands = new();

@@ -15,4 +15,8 @@ public sealed record MachineSessionState(
     long ReceivedSampleCount,
     MachineGatewayFailureKind? LastFailureKind,
     string? LastCommunicationError,
-    IReadOnlyList<MachineDiagnosticMessage> RecentDiagnostics);
+    IReadOnlyList<MachineDiagnosticMessage> RecentDiagnostics,
+    TelemetryPipelineMetrics TelemetryMetrics,
+    TelemetryAggregate? LatestAggregate,
+    IReadOnlyList<AlarmEvent> ActiveAlarms,
+    IReadOnlyList<AlarmEvent> AlarmHistory);

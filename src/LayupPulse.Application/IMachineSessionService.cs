@@ -18,4 +18,11 @@ public interface IMachineSessionService : IAsyncDisposable
     public Task<MachineCommandExecutionResult> ExecuteCommandAsync(
         MachineCommand command,
         CancellationToken cancellationToken);
+
+    public Task<MachineSessionOperationResult> SetDemoFaultAsync(
+        FaultType fault,
+        bool active,
+        CancellationToken cancellationToken);
+
+    public bool AcknowledgeAlarm(Guid alarmId);
 }

@@ -126,6 +126,15 @@ public sealed class GrpcMachineGateway : IMachineGateway, IDemoFaultGateway
         }
     }
 
+    public ValueTask AbandonAsync(IMachineSession session)
+    {
+        GrpcMachineSession grpcSession = GetSession(session);
+        _sessions.TryRemove(grpcSession.SessionId, out _);
+        grpcSession.Dispose();
+        SessionClosedLog(_logger, grpcSession.SessionId, null);
+        return ValueTask.CompletedTask;
+    }
+
     public async Task<CommandResult> ExecuteCommandAsync(
         IMachineSession session,
         MachineCommand command,

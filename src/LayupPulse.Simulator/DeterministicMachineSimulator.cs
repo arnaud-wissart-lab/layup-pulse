@@ -285,7 +285,8 @@ public sealed class DeterministicMachineSimulator
             _heaterTemperatureCelsius,
             _materialPressureBar,
             _cycleProgressPercentage,
-            _processHealthPercentage);
+            _processHealthPercentage,
+            _machine.ActiveFaults);
 
         return new SimulationSnapshot(_machine, telemetry, activeFault);
     }

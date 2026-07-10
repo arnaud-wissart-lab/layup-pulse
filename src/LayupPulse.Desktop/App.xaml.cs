@@ -65,10 +65,13 @@ public partial class App : System.Windows.Application
 
         MachineSessionOptions sessionOptions = new();
         builder.Configuration.GetSection("Session").Bind(sessionOptions);
+        DemoModeOptions demoModeOptions = new();
+        builder.Configuration.GetSection("DemoMode").Bind(demoModeOptions);
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(gatewayOptions);
         builder.Services.AddSingleton(sessionOptions);
+        builder.Services.AddSingleton(demoModeOptions);
         builder.Services.AddSingleton<GrpcMachineGateway>();
         builder.Services.AddSingleton<IMachineGateway>(services =>
             services.GetRequiredService<GrpcMachineGateway>());
@@ -78,6 +81,7 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<IUiDispatcher, WpfUiDispatcher>();
         builder.Services.AddSingleton<OverviewViewModel>();
         builder.Services.AddSingleton<DiagnosticsViewModel>();
+        builder.Services.AddSingleton<AlarmsViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LayupPulse.Application;
+using LayupPulse.Domain;
 using LayupPulse.Infrastructure;
 
 namespace LayupPulse.Desktop;
@@ -19,16 +20,35 @@ public sealed class DiagnosticsViewModel : ObservableObject
     private string _connectionDuration = "—";
     private string _dataAge = "—";
     private string _latestCommunicationError = "Aucune";
+    private string _droppedOrCoalescedSamples = "0";
+    private string _acquisitionRate = "0,0 Hz";
+    private string _uiPublicationRate = "0,0 Hz";
+    private string _aggregateCount = "0";
+    private string _reconnectCount = "0";
+    private string _historyUtilization = "0 / 0";
+    private string _simulationControlStatus = "Aucun défaut simulé actif.";
+    private string _simulationControlTone = "Neutral";
 
     public DiagnosticsViewModel(
         GrpcMachineGatewayOptions gatewayOptions,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IMachineSessionService sessionService,
+        DemoModeOptions demoModeOptions)
     {
         ArgumentNullException.ThrowIfNull(gatewayOptions);
         _timeProvider = timeProvider;
         Endpoint = gatewayOptions.GetValidatedEndpoint().ToString();
         Version? version = typeof(App).Assembly.GetName().Version;
         ApplicationVersion = version is null ? "Indisponible" : version.ToString(3);
+        IsDemoMode = demoModeOptions.Enabled;
+        SimulationFaults =
+        [
+            new("OverTemperature", FaultType.HighTemperature, sessionService, ReportSimulationResult),
+            new("LowMaterialPressure", FaultType.LowMaterialPressure, sessionService, ReportSimulationResult),
+            new("UnstableCompactionForce", FaultType.UnstableCompactionForce, sessionService, ReportSimulationResult),
+            new("HeadPositionError", FaultType.HeadPositionError, sessionService, ReportSimulationResult),
+            new("CommunicationDrop", FaultType.CommunicationTimeout, sessionService, ReportSimulationResult),
+        ];
     }
 
     public string Endpoint { get; }
@@ -36,6 +56,10 @@ public sealed class DiagnosticsViewModel : ObservableObject
     public string ApplicationVersion { get; }
 
     public string SimulatorVersion { get; } = "Non exposée par le contrat layuppulse.v1";
+
+    public bool IsDemoMode { get; }
+
+    public IReadOnlyList<SimulationFaultControlViewModel> SimulationFaults { get; }
 
     public ObservableCollection<DiagnosticMessageViewModel> RecentMessages { get; } = new();
 
@@ -93,6 +117,54 @@ public sealed class DiagnosticsViewModel : ObservableObject
         private set => SetProperty(ref _latestCommunicationError, value);
     }
 
+    public string DroppedOrCoalescedSamples
+    {
+        get => _droppedOrCoalescedSamples;
+        private set => SetProperty(ref _droppedOrCoalescedSamples, value);
+    }
+
+    public string AcquisitionRate
+    {
+        get => _acquisitionRate;
+        private set => SetProperty(ref _acquisitionRate, value);
+    }
+
+    public string UiPublicationRate
+    {
+        get => _uiPublicationRate;
+        private set => SetProperty(ref _uiPublicationRate, value);
+    }
+
+    public string AggregateCount
+    {
+        get => _aggregateCount;
+        private set => SetProperty(ref _aggregateCount, value);
+    }
+
+    public string ReconnectCount
+    {
+        get => _reconnectCount;
+        private set => SetProperty(ref _reconnectCount, value);
+    }
+
+    public string HistoryUtilization
+    {
+        get => _historyUtilization;
+        private set => SetProperty(ref _historyUtilization, value);
+    }
+
+    public string SimulationControlStatus
+    {
+        get => _simulationControlStatus;
+        private set => SetProperty(ref _simulationControlStatus, value);
+    }
+
+    public string SimulationControlTone
+    {
+        get => _simulationControlTone;
+        private set => SetProperty(ref _simulationControlTone, value);
+    }
+
     public void ApplyState(MachineSessionState state)
     {
         DateTimeOffset now = _timeProvider.GetUtcNow();
@@ -110,6 +182,18 @@ public sealed class DiagnosticsViewModel : ObservableObject
             ? "—"
             : $"{Math.Max(0, (now - state.LastSuccessfulCommunication.Value).TotalSeconds):F1} s";
         LatestCommunicationError = state.LastCommunicationError ?? "Aucune";
+        TelemetryPipelineMetrics metrics = state.TelemetryMetrics;
+        DroppedOrCoalescedSamples = metrics.DroppedOrCoalescedSamples
+            .ToString(CultureInfo.CurrentCulture);
+        AcquisitionRate = $"{metrics.AcquisitionRateHertz:F1} Hz";
+        UiPublicationRate = $"{metrics.UiPublicationRateHertz:F1} Hz";
+        AggregateCount = metrics.AggregateCount.ToString(CultureInfo.CurrentCulture);
+        ReconnectCount = metrics.ReconnectCount.ToString(CultureInfo.CurrentCulture);
+        HistoryUtilization = $"{metrics.HistoryCount} / {metrics.HistoryCapacity}";
+        foreach (SimulationFaultControlViewModel fault in SimulationFaults)
+        {
+            fault.ApplyState(state);
+        }
 
         MachineDiagnosticMessage? latest = state.RecentDiagnostics.Count == 0
             ? null
@@ -134,4 +218,10 @@ public sealed class DiagnosticsViewModel : ObservableObject
         duration.TotalHours >= 1
             ? $"{(int)duration.TotalHours:D2}:{duration.Minutes:D2}:{duration.Seconds:D2}"
             : $"{duration.Minutes:D2}:{duration.Seconds:D2}";
+
+    private void ReportSimulationResult(string message, bool isError)
+    {
+        SimulationControlStatus = message;
+        SimulationControlTone = isError ? "Danger" : "Warning";
+    }
 }

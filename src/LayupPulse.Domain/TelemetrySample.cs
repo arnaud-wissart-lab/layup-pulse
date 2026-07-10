@@ -18,7 +18,8 @@ public sealed record TelemetrySample
         double heaterTemperatureCelsius,
         double materialPressureBar,
         double cycleProgressPercentage,
-        double processHealthPercentage)
+        double processHealthPercentage,
+        IEnumerable<FaultType>? activeFaults = null)
     {
         if (sequenceNumber < 0)
         {
@@ -43,6 +44,9 @@ public sealed record TelemetrySample
         MaterialPressureBar = materialPressureBar;
         CycleProgressPercentage = cycleProgressPercentage;
         ProcessHealthPercentage = processHealthPercentage;
+        ActiveFaultSignals = activeFaults?.Aggregate(
+            0,
+            static (signals, fault) => signals | (1 << (int)fault)) ?? 0;
     }
 
     public DateTimeOffset Timestamp { get; init; }
@@ -70,6 +74,19 @@ public sealed record TelemetrySample
     public double CycleProgressPercentage { get; init; }
 
     public double ProcessHealthPercentage { get; init; }
+
+    /// <summary>
+    /// Signaux de défaut explicitement publiés par le simulateur fictif.
+    /// </summary>
+    public int ActiveFaultSignals { get; init; }
+
+    public bool HasActiveFault(FaultType fault) =>
+        (ActiveFaultSignals & (1 << (int)fault)) != 0;
+
+    public IReadOnlyList<FaultType> GetActiveFaults() => Enum
+        .GetValues<FaultType>()
+        .Where(HasActiveFault)
+        .ToArray();
 
     private static void EnsurePercentage(double value, string parameterName)
     {

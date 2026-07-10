@@ -94,15 +94,47 @@ public sealed class MachineSessionServiceTests
         Assert.Equal(1, service.State.ReceivedSampleCount);
     }
 
+    [Fact]
+    public async Task OlderTelemetryCannotOverwriteANewerFaultCommandSnapshot()
+    {
+        TestMachineGateway gateway = new();
+        await using MachineSessionService service = CreateService(gateway);
+        await service.ConnectAsync(CancellationToken.None);
+        await gateway.Telemetry.Writer.WriteAsync(
+            CreateTelemetry(42, MachineState.Running),
+            CancellationToken.None);
+        await WaitUntilAsync(() => service.State.ReceivedSampleCount == 1, TimeSpan.FromSeconds(1));
+
+        MachineSessionOperationResult injected = await service.SetDemoFaultAsync(
+            FaultType.CommunicationTimeout,
+            active: true,
+            CancellationToken.None);
+        await gateway.Telemetry.Writer.WriteAsync(
+            CreateTelemetry(43, MachineState.Running),
+            CancellationToken.None);
+        await WaitUntilAsync(() => service.State.ReceivedSampleCount == 2, TimeSpan.FromSeconds(1));
+
+        Assert.True(injected.IsSuccessful);
+        Assert.Equal(MachineState.Faulted, service.State.LatestSnapshot.State);
+        Assert.Contains(FaultType.CommunicationTimeout, service.State.LatestSnapshot.ActiveFaults);
+    }
+
     private static MachineSessionService CreateService(TestMachineGateway gateway) =>
-        new(gateway, TimeProvider.System, CreateOptions());
+        new(gateway, TimeProvider.System, CreateOptions(), gateway);
 
     private static MachineSessionOptions CreateOptions() => new()
     {
         StaleAfter = TimeSpan.FromSeconds(5),
         StaleCheckInterval = TimeSpan.FromMilliseconds(50),
-        NotificationInterval = TimeSpan.Zero,
         DiagnosticCapacity = 10,
+        Telemetry = new TelemetryPipelineOptions
+        {
+            UiPublicationInterval = TimeSpan.FromTicks(1),
+        },
+        Alarms = new AlarmEngineOptions
+        {
+            CommunicationTimeout = TimeSpan.FromSeconds(10),
+        },
     };
 
     private static CommandResult CreateRejectedResult(MachineCommand command, string message)
@@ -139,11 +171,11 @@ public sealed class MachineSessionServiceTests
         }
     }
 
-    private sealed class TestMachineGateway : IMachineGateway
+    private sealed class TestMachineGateway : IMachineGateway, IDemoFaultGateway
     {
         private readonly TestMachineSession _session = new(Guid.NewGuid(), Timestamp);
 
-        public Channel<TelemetrySample> Telemetry { get; } = Channel.CreateUnbounded<TelemetrySample>();
+        public Channel<TelemetrySample> Telemetry { get; } = Channel.CreateBounded<TelemetrySample>(10);
 
         public TaskCompletionSource StreamCancellationObserved { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -167,6 +199,8 @@ public sealed class MachineSessionServiceTests
             DisconnectCount++;
             return Task.CompletedTask;
         }
+
+        public ValueTask AbandonAsync(IMachineSession session) => ValueTask.CompletedTask;
 
         public Task<CommandResult> ExecuteCommandAsync(
             IMachineSession session,
@@ -210,6 +244,37 @@ public sealed class MachineSessionServiceTests
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        public Task<CommandResult> InjectFaultAsync(
+            IMachineSession session,
+            Guid correlationId,
+            FaultType fault,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            MachineSnapshot before = CreateReadySnapshot();
+            MachineSnapshot after = new(
+                MachineState.Faulted,
+                TimeProvider.System.GetUtcNow(),
+                BuiltInRecipes.WingPanelDemo,
+                activeFaults: [fault]);
+            return Task.FromResult(new CommandResult(
+                correlationId,
+                StateTransitionResult.Accepted(before.State, after)));
+        }
+
+        public Task<CommandResult> ClearFaultAsync(
+            IMachineSession session,
+            Guid correlationId,
+            FaultType fault,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            MachineSnapshot snapshot = CreateReadySnapshot();
+            return Task.FromResult(new CommandResult(
+                correlationId,
+                StateTransitionResult.Accepted(MachineState.Faulted, snapshot)));
+        }
 
         private static MachineSnapshot CreateReadySnapshot() =>
             new(MachineState.Ready, Timestamp, BuiltInRecipes.WingPanelDemo);

@@ -6,3 +6,4 @@ Use sequential names such as `0001-use-grpc-for-simulator-transport.md`. Each de
 
 - [ADR 0001 — Utiliser gRPC entre le simulateur et le client de bureau](0001-use-grpc-for-simulator-transport.md)
 - [ADR 0002 — Centraliser la session machine hors de WPF](0002-centralize-desktop-machine-session.md)
+- [ADR 0003 — Borner le pipeline et sérialiser la reconnexion](0003-bound-telemetry-and-reconnect.md)

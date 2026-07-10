@@ -1,6 +1,7 @@
 <UserControl x:Class="LayupPulse.Desktop.Views.DiagnosticsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
              Background="{StaticResource WindowBackgroundBrush}">
   <ScrollViewer VerticalScrollBarVisibility="Auto"
                 HorizontalScrollBarVisibility="Disabled">
@@ -68,6 +69,66 @@
         </Border>
       </UniformGrid>
 
+      <TextBlock Margin="0,4,0,10"
+                 Style="{StaticResource SectionTitleStyle}"
+                 Text="Pipeline télémétrique borné" />
+      <UniformGrid Columns="3">
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="REÇUS · COALESCÉS/PERDUS" />
+            <TextBlock Margin="0,7,0,0"
+                       FontFamily="{StaticResource NumericFont}"
+                       Text="{Binding ReceivedSampleCount, StringFormat={}{0} reçus}" />
+            <TextBlock Margin="0,4,0,0"
+                       Foreground="{StaticResource WarningBrush}"
+                       Text="{Binding DroppedOrCoalescedSamples, StringFormat={}{0} coalescés ou perdus}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="CADENCE D’ACQUISITION" />
+            <TextBlock Margin="0,7,0,0"
+                       Style="{StaticResource NumericValueStyle}"
+                       Text="{Binding AcquisitionRate}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="CADENCE DE PUBLICATION UI" />
+            <TextBlock Margin="0,7,0,0"
+                       Style="{StaticResource NumericValueStyle}"
+                       Text="{Binding UiPublicationRate}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="AGRÉGATS D’UNE SECONDE" />
+            <TextBlock Margin="0,7,0,0"
+                       Style="{StaticResource NumericValueStyle}"
+                       Text="{Binding AggregateCount}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="TENTATIVES DE RECONNEXION" />
+            <TextBlock Margin="0,7,0,0"
+                       Style="{StaticResource NumericValueStyle}"
+                       Text="{Binding ReconnectCount}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="HISTORIQUE · CAPACITÉ" />
+            <TextBlock Margin="0,7,0,0"
+                       Style="{StaticResource NumericValueStyle}"
+                       Text="{Binding HistoryUtilization}" />
+            <TextBlock Margin="0,4,0,0"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Fenêtre maximale : 60 s" />
+          </StackPanel>
+        </Border>
+      </UniformGrid>
+
       <Grid Margin="0,2,0,14">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
@@ -107,6 +168,61 @@
           </StackPanel>
         </Border>
       </Grid>
+
+      <Border Margin="0,2,0,14"
+              Tag="{Binding SimulationControlTone}">
+        <Border.Style>
+          <Style TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="Visibility" Value="Visible" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsDemoMode}" Value="False">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+        <StackPanel>
+          <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Simulation Controls" />
+          <TextBlock Margin="0,5,0,5"
+                     Foreground="{StaticResource WarningBrush}"
+                     FontWeight="SemiBold"
+                     Text="Défauts simulés uniquement — ces commandes n’agissent sur aucun matériel réel." />
+          <TextBlock Margin="0,0,0,12"
+                     Foreground="{StaticResource SecondaryTextBrush}"
+                     Text="{Binding SimulationControlStatus}" />
+          <ItemsControl ItemsSource="{Binding SimulationFaults}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid Margin="0,3">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock VerticalAlignment="Center"
+                             FontFamily="{StaticResource NumericFont}"
+                             Text="{Binding Name}" />
+                  <TextBlock Grid.Column="1"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource SecondaryTextBrush}"
+                             Text="{Binding StateText}" />
+                  <Button Grid.Column="2"
+                          Command="{Binding InjectCommand}"
+                          Content="Injecter"
+                          Style="{StaticResource DangerButtonStyle}"
+                          automation:AutomationProperties.Name="{Binding Name, StringFormat=Injecter le défaut simulé {0}}" />
+                  <Button Grid.Column="3"
+                          Command="{Binding ClearCommand}"
+                          Content="Lever"
+                          Style="{StaticResource SecondaryButtonStyle}"
+                          automation:AutomationProperties.Name="{Binding Name, StringFormat=Lever le défaut simulé {0}}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
 
       <TextBlock Margin="0,2,0,10"
                  Style="{StaticResource SectionTitleStyle}"

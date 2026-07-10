@@ -1,13 +1,15 @@
+using System.Collections.Immutable;
 using LayupPulse.Domain;
 
 namespace LayupPulse.Application;
 
 /// <summary>
-/// Maintient une session machine unique, sa télémétrie la plus récente et son état de fraîcheur.
+/// Possède la session, le pipeline télémétrique et l’unique boucle de reconnexion de l’application.
 /// </summary>
 public sealed class MachineSessionService : IMachineSessionService
 {
     private readonly IMachineGateway _gateway;
+    private readonly IDemoFaultGateway? _demoFaultGateway;
     private readonly TimeProvider _timeProvider;
     private readonly MachineSessionOptions _options;
     private readonly object _stateLock = new();
@@ -15,16 +17,18 @@ public sealed class MachineSessionService : IMachineSessionService
     private readonly Queue<MachineDiagnosticMessage> _diagnostics = new();
     private MachineSessionState _state;
     private IMachineSession? _transportSession;
-    private CancellationTokenSource? _sessionCancellation;
-    private Task? _telemetryTask;
-    private Task? _staleMonitorTask;
-    private DateTimeOffset _lastNotificationAt = DateTimeOffset.MinValue;
+    private CancellationTokenSource? _connectionCancellation;
+    private CancellationTokenSource? _streamAttemptCancellation;
+    private Task? _supervisorTask;
+    private Task? _freshnessMonitorTask;
+    private TelemetryPipeline? _pipeline;
     private int _isDisposed;
 
     public MachineSessionService(
         IMachineGateway gateway,
         TimeProvider timeProvider,
-        MachineSessionOptions options)
+        MachineSessionOptions options,
+        IDemoFaultGateway? demoFaultGateway = null)
     {
         ArgumentNullException.ThrowIfNull(gateway);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -32,19 +36,10 @@ public sealed class MachineSessionService : IMachineSessionService
         options.Validate();
 
         _gateway = gateway;
+        _demoFaultGateway = demoFaultGateway;
         _timeProvider = timeProvider;
         _options = options;
-        _state = new MachineSessionState(
-            MachineConnectionStatus.Disconnected,
-            MachineSnapshot.Disconnected(_timeProvider.GetUtcNow()),
-            null,
-            null,
-            null,
-            null,
-            0,
-            null,
-            null,
-            Array.Empty<MachineDiagnosticMessage>());
+        _state = CreateInitialState();
     }
 
     public event EventHandler<MachineSessionStateChangedEventArgs>? StateChanged;
@@ -66,6 +61,8 @@ public sealed class MachineSessionService : IMachineSessionService
         await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         IMachineSession? connectedSession = null;
+        CancellationTokenSource? connectionCancellation = null;
+        TelemetryPipeline? pipeline = null;
         try
         {
             if (State.ConnectionStatus != MachineConnectionStatus.Disconnected)
@@ -83,21 +80,30 @@ public sealed class MachineSessionService : IMachineSessionService
                     LastFailureKind = null,
                 },
                 MachineDiagnosticLevel.Information,
-                "Connexion au simulateur en cours…",
-                forceNotification: true);
+                "Connexion au simulateur en cours…");
 
-            connectedSession = await _gateway.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            connectionCancellation = new CancellationTokenSource();
+            using CancellationTokenSource connectAttempt = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                connectionCancellation.Token);
+            connectedSession = await _gateway.ConnectAsync(connectAttempt.Token).ConfigureAwait(false);
             MachineSnapshot snapshot = await _gateway
-                .GetSnapshotAsync(connectedSession, cancellationToken)
+                .GetSnapshotAsync(connectedSession, connectAttempt.Token)
                 .ConfigureAwait(false);
 
-            CancellationTokenSource sessionCancellation = new();
-            DateTimeOffset receivedAt = _timeProvider.GetUtcNow();
+            pipeline = new TelemetryPipeline(
+                _timeProvider,
+                _options.Telemetry,
+                new AlarmEngine(_timeProvider, _options.Alarms));
+            pipeline.PublicationReady += OnPipelinePublicationReady;
+            TelemetryPipelinePublicationEventArgs initialPublication = pipeline.GetCurrentPublication();
+            DateTimeOffset connectedAt = _timeProvider.GetUtcNow();
 
             lock (_stateLock)
             {
                 _transportSession = connectedSession;
-                _sessionCancellation = sessionCancellation;
+                _connectionCancellation = connectionCancellation;
+                _pipeline = pipeline;
             }
 
             UpdateState(
@@ -108,24 +114,29 @@ public sealed class MachineSessionService : IMachineSessionService
                     LatestTelemetry = null,
                     SessionId = connectedSession.SessionId,
                     ConnectedAt = connectedSession.ConnectedAt,
-                    LastSuccessfulCommunication = receivedAt,
+                    LastSuccessfulCommunication = connectedAt,
                     ReceivedSampleCount = 0,
                     LastCommunicationError = null,
                     LastFailureKind = null,
+                    TelemetryMetrics = initialPublication.Metrics,
+                    LatestAggregate = null,
+                    ActiveAlarms = initialPublication.ActiveAlarms,
+                    AlarmHistory = initialPublication.AlarmHistory,
                 },
                 MachineDiagnosticLevel.Information,
-                "Connexion au simulateur établie.",
-                forceNotification: true);
+                "Connexion au simulateur établie.");
 
-            Task telemetryTask = ReadTelemetryAsync(connectedSession, sessionCancellation.Token);
-            Task staleMonitorTask = MonitorStalenessAsync(sessionCancellation.Token);
+            Task supervisorTask = SuperviseTelemetryAsync(connectedSession, connectionCancellation.Token);
+            Task freshnessMonitorTask = MonitorFreshnessAsync(connectionCancellation.Token);
             lock (_stateLock)
             {
-                _telemetryTask = telemetryTask;
-                _staleMonitorTask = staleMonitorTask;
+                _supervisorTask = supervisorTask;
+                _freshnessMonitorTask = freshnessMonitorTask;
             }
 
             connectedSession = null;
+            connectionCancellation = null;
+            pipeline = null;
             return MachineSessionOperationResult.Successful("Connexion établie.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -135,6 +146,7 @@ public sealed class MachineSessionService : IMachineSessionService
                 await TryAbandonSessionAsync(connectedSession).ConfigureAwait(false);
             }
 
+            pipeline?.Complete();
             SetDisconnected("Connexion annulée.", MachineDiagnosticLevel.Warning);
             throw;
         }
@@ -146,20 +158,23 @@ public sealed class MachineSessionService : IMachineSessionService
             }
 
             UpdateState(
-                state => state with
+                state => CreateDisconnectedState(state) with
                 {
-                    ConnectionStatus = MachineConnectionStatus.Disconnected,
-                    LatestSnapshot = MachineSnapshot.Disconnected(_timeProvider.GetUtcNow()),
                     LastCommunicationError = exception.Message,
                     LastFailureKind = exception.FailureKind,
                 },
                 MachineDiagnosticLevel.Error,
-                exception.Message,
-                forceNotification: true);
+                exception.Message);
             return MachineSessionOperationResult.Failed(exception.Message, exception.FailureKind);
         }
         finally
         {
+            if (pipeline is not null)
+            {
+                pipeline.PublicationReady -= OnPipelinePublicationReady;
+            }
+
+            connectionCancellation?.Dispose();
             _operationLock.Release();
         }
     }
@@ -172,19 +187,23 @@ public sealed class MachineSessionService : IMachineSessionService
         try
         {
             IMachineSession? session;
-            CancellationTokenSource? sessionCancellation;
-            Task? telemetryTask;
-            Task? staleMonitorTask;
+            CancellationTokenSource? connectionCancellation;
+            CancellationTokenSource? streamAttemptCancellation;
+            Task? supervisorTask;
+            Task? freshnessMonitorTask;
+            TelemetryPipeline? pipeline;
 
             lock (_stateLock)
             {
                 session = _transportSession;
-                sessionCancellation = _sessionCancellation;
-                telemetryTask = _telemetryTask;
-                staleMonitorTask = _staleMonitorTask;
+                connectionCancellation = _connectionCancellation;
+                streamAttemptCancellation = _streamAttemptCancellation;
+                supervisorTask = _supervisorTask;
+                freshnessMonitorTask = _freshnessMonitorTask;
+                pipeline = _pipeline;
             }
 
-            if (session is null)
+            if (connectionCancellation is null)
             {
                 SetDisconnected("Session déjà déconnectée.", MachineDiagnosticLevel.Information);
                 return MachineSessionOperationResult.Successful("Session déjà déconnectée.");
@@ -193,36 +212,29 @@ public sealed class MachineSessionService : IMachineSessionService
             UpdateState(
                 state => state with { ConnectionStatus = MachineConnectionStatus.Disconnecting },
                 MachineDiagnosticLevel.Information,
-                "Déconnexion du simulateur en cours…",
-                forceNotification: true);
+                "Déconnexion du simulateur en cours…");
 
-            sessionCancellation?.Cancel();
-            await AwaitBackgroundTasksAsync(telemetryTask, staleMonitorTask).ConfigureAwait(false);
+            connectionCancellation.Cancel();
+            streamAttemptCancellation?.Cancel();
+            await AwaitBackgroundTasksAsync(supervisorTask, freshnessMonitorTask).ConfigureAwait(false);
+            pipeline?.EvaluateCommunication(communicationExpected: false, communicationStartedAt: null);
+            pipeline?.Complete();
 
             MachineGatewayException? failure = null;
-            try
+            session = GetTransportSession();
+            if (session is not null)
             {
-                await _gateway.DisconnectAsync(session, cancellationToken).ConfigureAwait(false);
-            }
-            catch (MachineGatewayException exception)
-            {
-                failure = exception;
-            }
-            finally
-            {
-                lock (_stateLock)
+                try
                 {
-                    if (ReferenceEquals(_transportSession, session))
-                    {
-                        _transportSession = null;
-                        _sessionCancellation = null;
-                        _telemetryTask = null;
-                        _staleMonitorTask = null;
-                    }
+                    await _gateway.DisconnectAsync(session, cancellationToken).ConfigureAwait(false);
                 }
-
-                sessionCancellation?.Dispose();
+                catch (MachineGatewayException exception)
+                {
+                    failure = exception;
+                }
             }
+
+            CleanupConnection(connectionCancellation, pipeline);
 
             if (failure is not null)
             {
@@ -233,8 +245,7 @@ public sealed class MachineSessionService : IMachineSessionService
                         LastFailureKind = failure.FailureKind,
                     },
                     MachineDiagnosticLevel.Warning,
-                    $"Session fermée localement après une erreur : {failure.Message}",
-                    forceNotification: true);
+                    $"Session fermée localement après une erreur : {failure.Message}");
                 return MachineSessionOperationResult.Failed(failure.Message, failure.FailureKind);
             }
 
@@ -257,15 +268,8 @@ public sealed class MachineSessionService : IMachineSessionService
 
         try
         {
-            IMachineSession? session;
-            MachineConnectionStatus connectionStatus;
-            lock (_stateLock)
-            {
-                session = _transportSession;
-                connectionStatus = _state.ConnectionStatus;
-            }
-
-            if (session is null || connectionStatus != MachineConnectionStatus.Connected)
+            IMachineSession? session = GetTransportSession();
+            if (session is null || State.ConnectionStatus != MachineConnectionStatus.Connected)
             {
                 return MachineCommandExecutionResult.NotConnected();
             }
@@ -289,23 +293,12 @@ public sealed class MachineSessionService : IMachineSessionService
                         LastFailureKind = null,
                     },
                     result.IsAccepted ? MachineDiagnosticLevel.Information : MachineDiagnosticLevel.Warning,
-                    message,
-                    forceNotification: true);
-
+                    message);
                 return MachineCommandExecutionResult.FromCommandResult(result) with { Message = message };
             }
             catch (MachineGatewayException exception)
             {
-                UpdateState(
-                    state => state with
-                    {
-                        ConnectionStatus = MachineConnectionStatus.Stale,
-                        LastCommunicationError = exception.Message,
-                        LastFailureKind = exception.FailureKind,
-                    },
-                    MachineDiagnosticLevel.Error,
-                    exception.Message,
-                    forceNotification: true);
+                SetRecoverableCommunicationFailure(exception);
                 return MachineCommandExecutionResult.Failed(exception.Message, exception.FailureKind);
             }
         }
@@ -313,6 +306,86 @@ public sealed class MachineSessionService : IMachineSessionService
         {
             _operationLock.Release();
         }
+    }
+
+    public async Task<MachineSessionOperationResult> SetDemoFaultAsync(
+        FaultType fault,
+        bool active,
+        CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        await _operationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            IMachineSession? session = GetTransportSession();
+            MachineConnectionStatus status = State.ConnectionStatus;
+            if (_demoFaultGateway is null)
+            {
+                return MachineSessionOperationResult.Failed(
+                    "Les contrôles de simulation ne sont pas disponibles.",
+                    MachineGatewayFailureKind.CommandRejected);
+            }
+
+            if (session is null || status is not (
+                MachineConnectionStatus.Connected
+                or MachineConnectionStatus.Stale
+                or MachineConnectionStatus.Reconnecting))
+            {
+                return MachineSessionOperationResult.Failed(
+                    "Aucune session simulée n’est disponible pour modifier ce défaut.",
+                    MachineGatewayFailureKind.Interrupted);
+            }
+
+            try
+            {
+                Guid correlationId = Guid.NewGuid();
+                CommandResult result = active
+                    ? await _demoFaultGateway
+                        .InjectFaultAsync(session, correlationId, fault, cancellationToken)
+                        .ConfigureAwait(false)
+                    : await _demoFaultGateway
+                        .ClearFaultAsync(session, correlationId, fault, cancellationToken)
+                        .ConfigureAwait(false);
+                string action = active ? "injecté" : "levé";
+                string message = result.IsAccepted
+                    ? $"Défaut simulé {fault} {action}."
+                    : result.Transition.Rejection?.Message ?? $"Modification du défaut simulé {fault} rejetée.";
+
+                UpdateState(
+                    state => state with
+                    {
+                        LatestSnapshot = result.Transition.Snapshot,
+                        LastSuccessfulCommunication = _timeProvider.GetUtcNow(),
+                    },
+                    result.IsAccepted ? MachineDiagnosticLevel.Warning : MachineDiagnosticLevel.Error,
+                    message);
+                return result.IsAccepted
+                    ? MachineSessionOperationResult.Successful(message)
+                    : MachineSessionOperationResult.Failed(message, MachineGatewayFailureKind.CommandRejected);
+            }
+            catch (MachineGatewayException exception)
+            {
+                SetRecoverableCommunicationFailure(exception);
+                return MachineSessionOperationResult.Failed(exception.Message, exception.FailureKind);
+            }
+        }
+        finally
+        {
+            _operationLock.Release();
+        }
+    }
+
+    public bool AcknowledgeAlarm(Guid alarmId)
+    {
+        ThrowIfDisposed();
+        TelemetryPipeline? pipeline;
+        lock (_stateLock)
+        {
+            pipeline = _pipeline;
+        }
+
+        return pipeline?.AcknowledgeAlarm(alarmId) == true;
     }
 
     public async ValueTask DisposeAsync()
@@ -332,66 +405,185 @@ public sealed class MachineSessionService : IMachineSessionService
         }
     }
 
-    private async Task ReadTelemetryAsync(IMachineSession session, CancellationToken cancellationToken)
+    private async Task SuperviseTelemetryAsync(
+        IMachineSession initialSession,
+        CancellationToken cancellationToken)
     {
+        IMachineSession? session = initialSession;
+        int consecutiveFailures = 0;
+        bool reconnecting = false;
+
         try
         {
-            await foreach (TelemetrySample sample in _gateway
-                .StreamTelemetryAsync(session, cancellationToken)
-                .WithCancellation(cancellationToken)
-                .ConfigureAwait(false))
+            while (!cancellationToken.IsCancellationRequested)
             {
-                DateTimeOffset receivedAt = _timeProvider.GetUtcNow();
-                bool recovered = State.ConnectionStatus == MachineConnectionStatus.Stale;
-                MachineState previousMachineState = State.LatestSnapshot.State;
+                if (reconnecting)
+                {
+                    TelemetryPipeline? reconnectPipeline = GetPipeline();
+                    reconnectPipeline?.RegisterReconnectAttempt();
+                    ApplyPipelinePublication(reconnectPipeline?.GetCurrentPublication());
+                    TimeSpan delay = CalculateReconnectDelay(consecutiveFailures);
 
-                UpdateState(
-                    state => state with
+                    try
                     {
-                        ConnectionStatus = MachineConnectionStatus.Connected,
-                        LatestTelemetry = sample,
-                        LatestSnapshot = state.LatestSnapshot with
-                        {
-                            State = sample.MachineState,
-                            Timestamp = sample.Timestamp,
-                        },
-                        LastSuccessfulCommunication = receivedAt,
-                        ReceivedSampleCount = state.ReceivedSampleCount + 1,
-                        LastCommunicationError = null,
-                        LastFailureKind = null,
-                    },
-                    recovered || previousMachineState != sample.MachineState
-                        ? MachineDiagnosticLevel.Information
-                        : null,
-                    recovered
-                        ? "Réception de la télémétrie rétablie."
-                        : previousMachineState != sample.MachineState
-                            ? $"État machine reçu : {sample.MachineState}."
-                            : null,
-                    forceNotification: recovered || previousMachineState != sample.MachineState);
-            }
+                        await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
 
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                await HandleUnexpectedStreamEndAsync(
-                    session,
-                    MachineGatewayFailureKind.Interrupted,
-                    "Le flux de télémétrie s’est terminé sans demande de déconnexion.")
-                    .ConfigureAwait(false);
+                    try
+                    {
+                        session = await PrepareReconnectSessionAsync(session, cancellationToken)
+                            .ConfigureAwait(false);
+                        reconnecting = false;
+                    }
+                    catch (MachineGatewayException exception)
+                    {
+                        consecutiveFailures++;
+                        SetReconnecting(exception.FailureKind, exception.Message);
+                        if (session is not null)
+                        {
+                            await TryAbandonSessionAsync(session).ConfigureAwait(false);
+                            session = null;
+                            SetTransportSession(null);
+                        }
+
+                        continue;
+                    }
+                }
+
+                if (session is null)
+                {
+                    reconnecting = true;
+                    continue;
+                }
+
+                bool receivedAnySample = false;
+                string failureMessage = "Le flux de télémétrie s’est terminé sans demande de déconnexion.";
+                MachineGatewayFailureKind failureKind = MachineGatewayFailureKind.Interrupted;
+                using CancellationTokenSource streamAttempt = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken);
+                SetStreamAttemptCancellation(streamAttempt);
+
+                try
+                {
+                    await foreach (TelemetrySample sample in _gateway
+                        .StreamTelemetryAsync(session, streamAttempt.Token)
+                        .WithCancellation(streamAttempt.Token)
+                        .ConfigureAwait(false))
+                    {
+                        receivedAnySample = true;
+                        GetPipeline()?.Accept(sample);
+                        MachineConnectionStatus previousStatus = State.ConnectionStatus;
+                        if (previousStatus is MachineConnectionStatus.Stale or MachineConnectionStatus.Reconnecting)
+                        {
+                            UpdateState(
+                                state => state with
+                                {
+                                    ConnectionStatus = MachineConnectionStatus.Connected,
+                                    LastCommunicationError = null,
+                                    LastFailureKind = null,
+                                },
+                                MachineDiagnosticLevel.Information,
+                                "Réception de la télémétrie rétablie.");
+                        }
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (OperationCanceledException) when (streamAttempt.IsCancellationRequested)
+                {
+                    failureKind = MachineGatewayFailureKind.Timeout;
+                    failureMessage = "Le flux télémétrique a été annulé après le délai de communication.";
+                }
+                catch (MachineGatewayException exception)
+                {
+                    failureKind = exception.FailureKind;
+                    failureMessage = exception.Message;
+                }
+                finally
+                {
+                    ClearStreamAttemptCancellation(streamAttempt);
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                consecutiveFailures = receivedAnySample ? 0 : consecutiveFailures + 1;
+                reconnecting = true;
+                SetReconnecting(failureKind, failureMessage);
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // L’annulation appartient au cycle de vie normal de la session.
-        }
-        catch (MachineGatewayException exception)
-        {
-            await HandleUnexpectedStreamEndAsync(session, exception.FailureKind, exception.Message)
-                .ConfigureAwait(false);
+            UpdateState(
+                state => state with
+                {
+                    ConnectionStatus = MachineConnectionStatus.Disconnected,
+                    LastCommunicationError = exception.Message,
+                    LastFailureKind = MachineGatewayFailureKind.Unexpected,
+                },
+                MachineDiagnosticLevel.Error,
+                $"La supervision de communication s’est arrêtée : {exception.Message}");
         }
     }
 
-    private async Task MonitorStalenessAsync(CancellationToken cancellationToken)
+    private async Task<IMachineSession> PrepareReconnectSessionAsync(
+        IMachineSession? session,
+        CancellationToken cancellationToken)
+    {
+        if (session is not null)
+        {
+            try
+            {
+                MachineSnapshot snapshot = await _gateway
+                    .GetSnapshotAsync(session, cancellationToken)
+                    .ConfigureAwait(false);
+                if (snapshot.State != MachineState.Disconnected)
+                {
+                    UpdateState(state => state with { LatestSnapshot = snapshot });
+                    return session;
+                }
+            }
+            catch (MachineGatewayException)
+            {
+                // La session locale est abandonnée ci-dessous avant une nouvelle connexion.
+            }
+
+            await TryAbandonSessionAsync(session).ConfigureAwait(false);
+            SetTransportSession(null);
+        }
+
+        IMachineSession connectedSession = await _gateway.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            MachineSnapshot snapshot = await _gateway
+                .GetSnapshotAsync(connectedSession, cancellationToken)
+                .ConfigureAwait(false);
+            SetTransportSession(connectedSession);
+            UpdateState(
+                state => state with
+                {
+                    LatestSnapshot = snapshot,
+                    SessionId = connectedSession.SessionId,
+                    ConnectedAt = connectedSession.ConnectedAt,
+                });
+            return connectedSession;
+        }
+        catch
+        {
+            await TryAbandonSessionAsync(connectedSession).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private async Task MonitorFreshnessAsync(CancellationToken cancellationToken)
     {
         using PeriodicTimer timer = new(_options.StaleCheckInterval, _timeProvider);
 
@@ -399,85 +591,175 @@ public sealed class MachineSessionService : IMachineSessionService
         {
             while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
             {
+                TelemetryPipeline? pipeline = GetPipeline();
+                if (pipeline is null)
+                {
+                    continue;
+                }
+
                 MachineSessionState state = State;
-                if (state.ConnectionStatus != MachineConnectionStatus.Connected
-                    || state.LastSuccessfulCommunication is null)
+                DateTimeOffset now = _timeProvider.GetUtcNow();
+                TelemetryPipelinePublicationEventArgs publication = pipeline.GetCurrentPublication();
+                DateTimeOffset? freshnessReference = publication.LastTelemetryReceivedAt
+                    ?? state.LastSuccessfulCommunication;
+                pipeline.EvaluateCommunication(
+                    communicationExpected: true,
+                    state.LastSuccessfulCommunication);
+
+                if (freshnessReference is null)
                 {
                     continue;
                 }
 
-                TimeSpan age = _timeProvider.GetUtcNow() - state.LastSuccessfulCommunication.Value;
-                if (age < _options.StaleAfter)
+                TimeSpan age = now - freshnessReference.Value;
+                if (age >= _options.Alarms.CommunicationTimeout)
                 {
-                    continue;
-                }
+                    if (state.ConnectionStatus != MachineConnectionStatus.Reconnecting)
+                    {
+                        SetReconnecting(
+                            MachineGatewayFailureKind.Timeout,
+                            $"Aucune télémétrie fraîche depuis {age.TotalSeconds:F1} s.");
+                    }
 
-                UpdateState(
-                    current => current with { ConnectionStatus = MachineConnectionStatus.Stale },
-                    MachineDiagnosticLevel.Warning,
-                    $"Télémétrie périmée depuis {age.TotalSeconds:F1} s.",
-                    forceNotification: true);
+                    CancelCurrentStreamAttempt();
+                }
+                else if (age >= _options.StaleAfter
+                    && state.ConnectionStatus == MachineConnectionStatus.Connected)
+                {
+                    UpdateState(
+                        current => current with { ConnectionStatus = MachineConnectionStatus.Stale },
+                        MachineDiagnosticLevel.Warning,
+                        $"Télémétrie périmée depuis {age.TotalSeconds:F1} s.");
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // L’annulation appartient au cycle de vie normal de la session.
+            // L’annulation appartient à la déconnexion explicite ou à l’arrêt de l’application.
         }
     }
 
-    private async Task HandleUnexpectedStreamEndAsync(
-        IMachineSession session,
-        MachineGatewayFailureKind failureKind,
-        string message)
+    private void OnPipelinePublicationReady(object? sender, TelemetryPipelinePublicationEventArgs publication)
     {
-        CancellationTokenSource? sessionCancellation;
         lock (_stateLock)
         {
-            if (!ReferenceEquals(_transportSession, session))
+            if (!ReferenceEquals(sender, _pipeline))
             {
                 return;
             }
-
-            sessionCancellation = _sessionCancellation;
         }
 
-        sessionCancellation?.Cancel();
+        ApplyPipelinePublication(publication);
+    }
+
+    private void ApplyPipelinePublication(TelemetryPipelinePublicationEventArgs? publication)
+    {
+        if (publication is null)
+        {
+            return;
+        }
+
+        UpdateState(state =>
+        {
+            TelemetrySample? telemetry = publication.LatestTelemetry;
+            bool telemetryIsCurrent = telemetry is not null
+                && telemetry.Timestamp >= state.LatestSnapshot.Timestamp;
+            MachineSnapshot snapshot = !telemetryIsCurrent
+                ? state.LatestSnapshot
+                : state.LatestSnapshot with
+                {
+                    State = telemetry!.MachineState,
+                    Timestamp = telemetry.Timestamp,
+                    ActiveFaults = telemetry.GetActiveFaults().ToImmutableHashSet(),
+                };
+            return state with
+            {
+                LatestTelemetry = telemetry,
+                LatestSnapshot = snapshot,
+                LastSuccessfulCommunication = publication.LastTelemetryReceivedAt
+                    ?? state.LastSuccessfulCommunication,
+                ReceivedSampleCount = publication.Metrics.ReceivedSamples,
+                TelemetryMetrics = publication.Metrics,
+                LatestAggregate = publication.LatestAggregate,
+                ActiveAlarms = publication.ActiveAlarms,
+                AlarmHistory = publication.AlarmHistory,
+            };
+        });
+    }
+
+    private void SetRecoverableCommunicationFailure(MachineGatewayException exception)
+    {
         UpdateState(
             state => state with
             {
-                ConnectionStatus = MachineConnectionStatus.Disconnected,
+                ConnectionStatus = MachineConnectionStatus.Reconnecting,
+                LastCommunicationError = exception.Message,
+                LastFailureKind = exception.FailureKind,
+            },
+            MachineDiagnosticLevel.Error,
+            exception.Message);
+        CancelCurrentStreamAttempt();
+    }
+
+    private void SetReconnecting(MachineGatewayFailureKind failureKind, string message)
+    {
+        UpdateState(
+            state => state with
+            {
+                ConnectionStatus = MachineConnectionStatus.Reconnecting,
                 LastCommunicationError = message,
                 LastFailureKind = failureKind,
             },
-            MachineDiagnosticLevel.Error,
-            message,
-            forceNotification: true);
-
-        await TryAbandonSessionAsync(session).ConfigureAwait(false);
-
-        lock (_stateLock)
-        {
-            if (ReferenceEquals(_transportSession, session))
-            {
-                _transportSession = null;
-                _sessionCancellation = null;
-                _telemetryTask = null;
-                _staleMonitorTask = null;
-            }
-        }
-
-        sessionCancellation?.Dispose();
+            MachineDiagnosticLevel.Warning,
+            $"Reconnexion automatique en cours : {message}");
     }
 
-    private async Task TryAbandonSessionAsync(IMachineSession session)
+    private TimeSpan CalculateReconnectDelay(int consecutiveFailures)
+    {
+        double multiplier = Math.Pow(
+            _options.ReconnectBackoffMultiplier,
+            Math.Max(0, consecutiveFailures - 1));
+        double ticks = Math.Min(
+            _options.ReconnectMaximumDelay.Ticks,
+            _options.ReconnectInitialDelay.Ticks * multiplier);
+        return TimeSpan.FromTicks((long)ticks);
+    }
+
+    private void CleanupConnection(
+        CancellationTokenSource connectionCancellation,
+        TelemetryPipeline? pipeline)
+    {
+        lock (_stateLock)
+        {
+            _transportSession = null;
+            _connectionCancellation = null;
+            _streamAttemptCancellation = null;
+            _supervisorTask = null;
+            _freshnessMonitorTask = null;
+            _pipeline = null;
+        }
+
+        if (pipeline is not null)
+        {
+            pipeline.PublicationReady -= OnPipelinePublicationReady;
+        }
+
+        connectionCancellation.Dispose();
+    }
+
+    private async ValueTask TryAbandonSessionAsync(IMachineSession session)
     {
         try
         {
-            await _gateway.DisconnectAsync(session, CancellationToken.None).ConfigureAwait(false);
+            await _gateway.AbandonAsync(session).ConfigureAwait(false);
         }
         catch (MachineGatewayException)
         {
-            // La passerelle ferme le canal local dans tous les cas.
+            // La session était déjà inutilisable ou libérée par une tentative concurrente annulée.
+        }
+        catch (ObjectDisposedException)
+        {
+            // La racine de composition a déjà libéré la passerelle.
         }
     }
 
@@ -495,7 +777,7 @@ public sealed class MachineSessionService : IMachineSessionService
         }
         catch (OperationCanceledException)
         {
-            // Les tâches de session sont annulées avant la déconnexion du transport.
+            // Les tâches possédées sont annulées avant la fermeture du transport.
         }
     }
 
@@ -503,8 +785,23 @@ public sealed class MachineSessionService : IMachineSessionService
         UpdateState(
             CreateDisconnectedState,
             diagnosticLevel,
-            diagnosticMessage,
-            forceNotification: true);
+            diagnosticMessage);
+
+    private MachineSessionState CreateInitialState() => new(
+        MachineConnectionStatus.Disconnected,
+        MachineSnapshot.Disconnected(_timeProvider.GetUtcNow()),
+        null,
+        null,
+        null,
+        null,
+        0,
+        null,
+        null,
+        Array.Empty<MachineDiagnosticMessage>(),
+        TelemetryPipelineMetrics.Empty(_options.Telemetry.HistoryCapacity),
+        null,
+        Array.Empty<AlarmEvent>(),
+        Array.Empty<AlarmEvent>());
 
     private MachineSessionState CreateDisconnectedState(MachineSessionState state) => state with
     {
@@ -514,16 +811,14 @@ public sealed class MachineSessionService : IMachineSessionService
         SessionId = null,
         ConnectedAt = null,
         LastSuccessfulCommunication = null,
-        ReceivedSampleCount = 0,
     };
 
     private void UpdateState(
         Func<MachineSessionState, MachineSessionState> update,
         MachineDiagnosticLevel? diagnosticLevel = null,
-        string? diagnosticMessage = null,
-        bool forceNotification = false)
+        string? diagnosticMessage = null)
     {
-        MachineSessionState? publishedState = null;
+        MachineSessionState publishedState;
         DateTimeOffset now = _timeProvider.GetUtcNow();
 
         lock (_stateLock)
@@ -541,18 +836,64 @@ public sealed class MachineSessionService : IMachineSessionService
             {
                 RecentDiagnostics = Array.AsReadOnly(_diagnostics.Reverse().ToArray()),
             };
+            publishedState = _state;
+        }
 
-            if (forceNotification || now - _lastNotificationAt >= _options.NotificationInterval)
+        StateChanged?.Invoke(this, new MachineSessionStateChangedEventArgs(publishedState));
+    }
+
+    private IMachineSession? GetTransportSession()
+    {
+        lock (_stateLock)
+        {
+            return _transportSession;
+        }
+    }
+
+    private void SetTransportSession(IMachineSession? session)
+    {
+        lock (_stateLock)
+        {
+            _transportSession = session;
+        }
+    }
+
+    private TelemetryPipeline? GetPipeline()
+    {
+        lock (_stateLock)
+        {
+            return _pipeline;
+        }
+    }
+
+    private void SetStreamAttemptCancellation(CancellationTokenSource cancellation)
+    {
+        lock (_stateLock)
+        {
+            _streamAttemptCancellation = cancellation;
+        }
+    }
+
+    private void ClearStreamAttemptCancellation(CancellationTokenSource cancellation)
+    {
+        lock (_stateLock)
+        {
+            if (ReferenceEquals(_streamAttemptCancellation, cancellation))
             {
-                _lastNotificationAt = now;
-                publishedState = _state;
+                _streamAttemptCancellation = null;
             }
         }
+    }
 
-        if (publishedState is not null)
+    private void CancelCurrentStreamAttempt()
+    {
+        CancellationTokenSource? cancellation;
+        lock (_stateLock)
         {
-            StateChanged?.Invoke(this, new MachineSessionStateChangedEventArgs(publishedState));
+            cancellation = _streamAttemptCancellation;
         }
+
+        cancellation?.Cancel();
     }
 
     private void ThrowIfDisposed(bool allowDisposing = false)

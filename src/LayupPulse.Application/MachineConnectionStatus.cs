@@ -9,5 +9,6 @@ public enum MachineConnectionStatus
     Connecting,
     Connected,
     Stale,
+    Reconnecting,
     Disconnecting,
 }

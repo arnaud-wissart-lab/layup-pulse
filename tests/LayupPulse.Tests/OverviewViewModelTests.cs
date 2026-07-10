@@ -86,7 +86,11 @@ public sealed class OverviewViewModelTests
             0,
             null,
             null,
-            Array.Empty<MachineDiagnosticMessage>());
+            Array.Empty<MachineDiagnosticMessage>(),
+            TelemetryPipelineMetrics.Empty(3_000),
+            null,
+            Array.Empty<AlarmEvent>(),
+            Array.Empty<AlarmEvent>());
 
     private static MachineSessionState CreateDisconnectedState() =>
         new(
@@ -99,7 +103,11 @@ public sealed class OverviewViewModelTests
             0,
             null,
             null,
-            Array.Empty<MachineDiagnosticMessage>());
+            Array.Empty<MachineDiagnosticMessage>(),
+            TelemetryPipelineMetrics.Empty(3_000),
+            null,
+            Array.Empty<AlarmEvent>(),
+            Array.Empty<AlarmEvent>());
 
     private sealed class TestSessionService : IMachineSessionService
     {
@@ -138,6 +146,17 @@ public sealed class OverviewViewModelTests
                 ?? new MachineCommandExecutionResult(MachineCommandExecutionStatus.Accepted, "Commande acceptée.");
             return Task.FromResult(result);
         }
+
+        public Task<MachineSessionOperationResult> SetDemoFaultAsync(
+            FaultType fault,
+            bool active,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(MachineSessionOperationResult.Successful("Défaut simulé modifié."));
+        }
+
+        public bool AcknowledgeAlarm(Guid alarmId) => false;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

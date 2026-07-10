@@ -11,6 +11,7 @@ internal static class MachineDisplayText
         MachineConnectionStatus.Connecting => "Connexion…",
         MachineConnectionStatus.Connected => "Connecté",
         MachineConnectionStatus.Stale => "Télémétrie périmée",
+        MachineConnectionStatus.Reconnecting => "Reconnexion…",
         MachineConnectionStatus.Disconnecting => "Déconnexion…",
         _ => "Inconnu",
     };
@@ -31,7 +32,9 @@ internal static class MachineDisplayText
     {
         MachineConnectionStatus.Connected => "Healthy",
         MachineConnectionStatus.Stale => "Warning",
-        MachineConnectionStatus.Connecting or MachineConnectionStatus.Disconnecting => "Info",
+        MachineConnectionStatus.Connecting
+            or MachineConnectionStatus.Reconnecting
+            or MachineConnectionStatus.Disconnecting => "Info",
         _ => "Neutral",
     };
 
@@ -50,7 +53,9 @@ internal static class MachineDisplayText
     {
         MachineConnectionStatus.Connected => "●",
         MachineConnectionStatus.Stale => "!",
-        MachineConnectionStatus.Connecting or MachineConnectionStatus.Disconnecting => "◌",
+        MachineConnectionStatus.Connecting
+            or MachineConnectionStatus.Reconnecting
+            or MachineConnectionStatus.Disconnecting => "◌",
         _ => "○",
     };
 

@@ -12,10 +12,13 @@ Le dépôt contient désormais un premier démonstrateur utilisable de bout en b
 - une application WPF hébergée par le Generic Host ;
 - une connexion configurable avec lecture d’instantané et télémétrie continue ;
 - les commandes de connexion, chargement de la recette fictive, démarrage, pause, reprise, arrêt, reset et déconnexion ;
-- une vue d’ensemble temps réel et une page de diagnostics ;
-- des pages Alarmes et Historique qui indiquent explicitement leur report.
+- une vue d’ensemble temps réel, une page Alarmes fonctionnelle et une page de diagnostics ;
+- un pipeline télémétrique borné avec historique roulant, agrégats d’une seconde et métriques ;
+- cinq règles d’alarme déterministes, leur acquittement et leur historique en mémoire ;
+- une reconnexion automatique bornée et des contrôles d’injection réservés au mode démo ;
+- une page Historique qui indique explicitement le report de la persistance.
 
-La persistance EF Core/SQLite, les alarmes applicatives, l’historique, les graphiques avancés et la visualisation 3D ne sont pas implémentés dans cet incrément. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
+La persistance EF Core/SQLite, l’historique durable des productions, les graphiques avancés et la visualisation 3D ne sont pas implémentés dans cet incrément. Les historiques télémétriques et d’alarmes actuels sont bornés en mémoire. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
 
 ## Technology baseline
 

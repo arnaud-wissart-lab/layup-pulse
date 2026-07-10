@@ -78,7 +78,10 @@ public static class GrpcContractMapper
                 message.HeaterTemperatureCelsius,
                 message.MaterialPressureBar,
                 message.CycleProgressPercentage,
-                message.ProcessHealthPercentage);
+                message.ProcessHealthPercentage,
+                message.ActiveFaults
+                    .Where(static fault => fault != SimulatedFault.None)
+                    .Select(static fault => fault.ToDomain()));
         }
         catch (ArgumentException exception)
         {

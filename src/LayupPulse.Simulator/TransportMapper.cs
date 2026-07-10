@@ -211,7 +211,10 @@ public static class TransportMapper
             telemetry.HeaterTemperatureCelsius,
             telemetry.MaterialPressureBar,
             telemetry.CycleProgressPercentage,
-            telemetry.ProcessHealthPercentage);
+            telemetry.ProcessHealthPercentage,
+            telemetry.ActiveFaults
+                .Where(static fault => fault != SimulatedFault.None)
+                .Select(static fault => fault.ToDomain()));
     }
 
     public static CommandResultMessage ToRejectedTransport(
