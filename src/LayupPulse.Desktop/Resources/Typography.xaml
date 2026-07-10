@@ -28,4 +28,11 @@
     <Setter Property="FontSize" Value="22" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+
+  <Style x:Key="CompactNumericValueStyle" TargetType="TextBlock">
+    <Setter Property="Margin" Value="0,1,0,0" />
+    <Setter Property="FontFamily" Value="{StaticResource NumericFont}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
 </ResourceDictionary>

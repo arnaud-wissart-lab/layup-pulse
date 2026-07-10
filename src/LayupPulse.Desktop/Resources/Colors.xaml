@@ -14,11 +14,17 @@
   <SolidColorBrush x:Key="AccentDarkBrush" Color="#157A9A" />
   <SolidColorBrush x:Key="HealthyBrush" Color="#42C891" />
   <SolidColorBrush x:Key="HealthySurfaceBrush" Color="#17382F" />
+  <SolidColorBrush x:Key="ReadyBrush" Color="#70C5A1" />
+  <SolidColorBrush x:Key="RunningBrush" Color="#39BCE3" />
+  <SolidColorBrush x:Key="PausedBrush" Color="#F1B84B" />
+  <SolidColorBrush x:Key="CompletedBrush" Color="#42C891" />
+  <SolidColorBrush x:Key="NeutralStateBrush" Color="#8799A5" />
   <SolidColorBrush x:Key="WarningBrush" Color="#F1B84B" />
   <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#3D321A" />
   <SolidColorBrush x:Key="DangerBrush" Color="#F06A6A" />
   <SolidColorBrush x:Key="DangerSurfaceBrush" Color="#422126" />
   <SolidColorBrush x:Key="InfoSurfaceBrush" Color="#173342" />
+  <SolidColorBrush x:Key="RunningSurfaceBrush" Color="#173342" />
   <SolidColorBrush x:Key="DisabledSurfaceBrush" Color="#1A2228" />
   <SolidColorBrush x:Key="DisabledTextBrush" Color="#60717C" />
 </ResourceDictionary>

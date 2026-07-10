@@ -58,7 +58,7 @@ The navigation contains Overview, Alarms, History, and Diagnostics. Each item ha
 
 ### Central machine visualization
 
-On Overview, the central region displays the fictional cell, current head position, simplified layup path, and active-process emphasis. The first operational version may be simplified; P1 adds portfolio-quality 3D. Rendering runs independently from telemetry acquisition and is capped to a measured refresh rate.
+On Overview, the central region displays a fictional cylindrical mandrel, current head position, planned path, deposited segment, remaining segment, and machine axes. HelixToolkit.Wpf provides orbit, zoom, reset-camera, and fit-view interactions. The scene distinguishes paused and faulted states with text and color and falls back to a non-crashing status panel if initialization fails. Rendering consumes only the coalesced UI publications and reuses model transforms.
 
 On other pages, this region becomes the primary page content while retaining the header and navigation.
 
@@ -84,7 +84,7 @@ The bottom region can switch or split between:
 - active alarms ordered by severity and raised time;
 - the most recent command and state-transition events.
 
-Charts display a fixed time window and maximum point count. New samples are aggregated or coalesced before UI dispatch. The area can expand for investigation but must not obscure critical command feedback.
+The four ScottPlot trends display heater temperature, material pressure, compaction force, and actual feed rate over a fixed 60-second window. They refresh at no more than 5 Hz from the bounded telemetry history and render at most 600 points per signal. Temperature, pressure, and feed-rate references remain visible where useful. The area does not obscure critical command feedback.
 
 ## 4. Pages
 
@@ -178,3 +178,11 @@ The shell defines explicit presentations for:
 - application shutdown in progress.
 
 Every state includes a concise explanation and the safest available next demonstration action. No UI wording may imply that LayupPulse provides real machine safety or control authority.
+
+## 8. Implémentation du système visuel
+
+Les dictionnaires de ressources partagés définissent les couleurs sémantiques, la typographie, l’espacement, les cartes, les boutons, les états de commande, les badges, les DataGrid, la navigation, les info-bulles, les onglets et les indicateurs de progression. Les états Ready, Running, Paused, Faulted et Completed possèdent des tons distincts tout en restant toujours nommés en texte.
+
+Overview est dimensionnée pour rester lisible à 1280 × 800 : la scène et le panneau KPI occupent la zone principale, tandis que les tendances, alarmes actives et dernier diagnostic se partagent la zone basse. Un défilement vertical de secours reste disponible aux petites tailles ou lorsque la mise à l’échelle du texte augmente.
+
+Les dates de présentation utilisent systématiquement l’heure locale et les données du domaine conservent leurs horodatages UTC. Les contrôles d’injection restent isolés sur Diagnostics sous l’avertissement « Défauts simulés uniquement » ; aucune commande ne simule un arrêt d’urgence.

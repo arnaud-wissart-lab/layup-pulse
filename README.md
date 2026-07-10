@@ -16,18 +16,28 @@ Le dépôt contient désormais un premier démonstrateur utilisable de bout en b
 - un pipeline télémétrique borné avec historique roulant, agrégats d’une seconde et métriques ;
 - cinq règles d’alarme déterministes, leur acquittement et leur historique en mémoire ;
 - une reconnexion automatique bornée et des contrôles d’injection réservés au mode démo ;
+- un tableau de bord industriel compact avec une scène 3D fictive pilotée par la télémétrie ;
+- quatre tendances ScottPlot bornées sur les 60 dernières secondes ;
 - une page Historique qui indique explicitement le report de la persistance.
 
-La persistance EF Core/SQLite, l’historique durable des productions, les graphiques avancés et la visualisation 3D ne sont pas implémentés dans cet incrément. Les historiques télémétriques et d’alarmes actuels sont bornés en mémoire. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
+La persistance EF Core/SQLite et l’historique durable des productions restent en cours d’intégration. Les historiques télémétriques et d’alarmes affichés sont bornés en mémoire. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
 
-## Technology baseline
+## Socle technique
 
-- .NET 10 and C# 14
-- WPF targeting `net10.0-windows`
-- SDK-style projects
-- Nullable reference types and deterministic builds
-- Central NuGet package management
-- xUnit for automated tests
+- .NET 10 et C# 14 ;
+- WPF ciblant `net10.0-windows` ;
+- gRPC pour la communication entre les processus ;
+- ScottPlot.WPF 5.1.59 pour les tendances temps réel ;
+- HelixToolkit.Wpf 3.1.2, fondé sur WPF 3D, pour la scène de la cellule fictive ;
+- projets au format SDK, références nullables et builds déterministes ;
+- gestion centrale des versions NuGet ;
+- xUnit pour les tests automatisés.
+
+## Captures d’écran
+
+La capture ci-dessous montre Overview pendant un cycle simulé à 1280 × 800 points logiques sous une mise à l’échelle Windows de 125 %.
+
+![Tableau de bord LayupPulse en cycle](docs/screenshots/overview-running.png)
 
 ## Projects
 
@@ -118,7 +128,7 @@ Séquence de démonstration disponible :
 1. cliquer sur **Connecter** ;
 2. charger **Wing Panel Demo** ;
 3. démarrer le cycle ;
-4. observer la télémétrie et la progression ;
+4. observer la scène 3D, la trajectoire déposée, la télémétrie et les tendances sur 60 secondes ;
 5. mettre en pause, reprendre, puis arrêter ;
 6. se déconnecter.
 

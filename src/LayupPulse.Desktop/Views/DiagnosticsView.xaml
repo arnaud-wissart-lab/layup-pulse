@@ -182,7 +182,7 @@
           </Style>
         </Border.Style>
         <StackPanel>
-          <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Simulation Controls" />
+          <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Contrôles de simulation" />
           <TextBlock Margin="0,5,0,5"
                      Foreground="{StaticResource WarningBrush}"
                      FontWeight="SemiBold"

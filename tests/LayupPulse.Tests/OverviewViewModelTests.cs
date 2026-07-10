@@ -120,6 +120,11 @@ public sealed class OverviewViewModelTests
 
         public MachineSessionState State { get; private set; }
 
+        public IReadOnlyList<TelemetrySample> GetTelemetryHistorySnapshot() =>
+            State.LatestTelemetry is null
+                ? Array.Empty<TelemetrySample>()
+                : [State.LatestTelemetry];
+
         public MachineSessionOperationResult ConnectResult { get; set; } =
             MachineSessionOperationResult.Successful("Connexion établie.");
 

@@ -63,4 +63,27 @@
     <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
   </Style>
+
+  <Style x:Key="CompactButtonStyle"
+         BasedOn="{StaticResource BaseButtonStyle}"
+         TargetType="Button">
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="5,4" />
+    <Setter Property="Margin" Value="0,0,5,5" />
+    <Setter Property="FontSize" Value="10" />
+  </Style>
+
+  <Style x:Key="PrimaryCompactButtonStyle"
+         BasedOn="{StaticResource CompactButtonStyle}"
+         TargetType="Button">
+    <Setter Property="Background" Value="{StaticResource AccentDarkBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+  </Style>
+
+  <Style x:Key="DangerCompactButtonStyle"
+         BasedOn="{StaticResource CompactButtonStyle}"
+         TargetType="Button">
+    <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+  </Style>
 </ResourceDictionary>

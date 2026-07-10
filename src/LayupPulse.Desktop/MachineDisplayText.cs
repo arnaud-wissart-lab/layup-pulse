@@ -40,11 +40,11 @@ internal static class MachineDisplayText
 
     public static string MachineTone(MachineState state) => state switch
     {
-        LayupPulse.Domain.MachineState.Running
-            or LayupPulse.Domain.MachineState.Ready
-            or LayupPulse.Domain.MachineState.Completed => "Healthy",
-        LayupPulse.Domain.MachineState.Paused => "Warning",
-        LayupPulse.Domain.MachineState.Faulted => "Danger",
+        LayupPulse.Domain.MachineState.Ready => "Ready",
+        LayupPulse.Domain.MachineState.Running => "Running",
+        LayupPulse.Domain.MachineState.Paused => "Paused",
+        LayupPulse.Domain.MachineState.Faulted => "Fault",
+        LayupPulse.Domain.MachineState.Completed => "Completed",
         LayupPulse.Domain.MachineState.Connecting => "Info",
         _ => "Neutral",
     };

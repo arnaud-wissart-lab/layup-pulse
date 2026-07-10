@@ -19,6 +19,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private string _loadedRecipe = string.Empty;
     private string _headerProgress = "0,0 %";
     private string _currentLocalTime = string.Empty;
+    private string _telemetryAge = "Aucune donnée";
+    private MachineSessionState _sessionState;
     private int _isDisposed;
 
     public ShellViewModel(
@@ -29,6 +31,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         AlarmsViewModel alarms)
     {
         _sessionService = sessionService;
+        _sessionState = sessionService.State;
         _dispatcher = dispatcher;
         Overview = overview;
         Diagnostics = diagnostics;
@@ -137,8 +140,20 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _currentLocalTime, value);
     }
 
-    public void RefreshClock() =>
-        CurrentLocalTime = DateTimeOffset.Now.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
+    public string TelemetryAge
+    {
+        get => _telemetryAge;
+        private set => SetProperty(ref _telemetryAge, value);
+    }
+
+    public void RefreshClock()
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+        CurrentLocalTime = now.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
+        TelemetryAge = _sessionState.LastSuccessfulCommunication is null
+            ? "Aucune donnée"
+            : $"{Math.Max(0, (now - _sessionState.LastSuccessfulCommunication.Value.ToLocalTime()).TotalSeconds):F1} s";
+    }
 
     public void Dispose()
     {
@@ -160,6 +175,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
 
     private void ApplyState(MachineSessionState state)
     {
+        _sessionState = state;
         ConnectionStatus = MachineDisplayText.ConnectionStatus(state.ConnectionStatus);
         ConnectionTone = MachineDisplayText.ConnectionTone(state.ConnectionStatus);
         ConnectionGlyph = MachineDisplayText.ConnectionGlyph(state.ConnectionStatus);
@@ -170,6 +186,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         HeaderProgress = state.LatestTelemetry is null
             ? "0,0 %"
             : $"{state.LatestTelemetry.CycleProgressPercentage:F1} %";
+        RefreshClock();
         Overview.ApplyState(state);
         Diagnostics.ApplyState(state);
         Alarms.ApplyState(state);

@@ -23,6 +23,26 @@
         <Setter Property="Background" Value="{StaticResource InfoSurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
       </Trigger>
+      <Trigger Property="Tag" Value="Ready">
+        <Setter Property="Background" Value="{StaticResource HealthySurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource ReadyBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Running">
+        <Setter Property="Background" Value="{StaticResource RunningSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource RunningBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Paused">
+        <Setter Property="Background" Value="{StaticResource WarningSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource PausedBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Fault">
+        <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Completed">
+        <Setter Property="Background" Value="{StaticResource HealthySurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CompletedBrush}" />
+      </Trigger>
     </Style.Triggers>
   </Style>
 </ResourceDictionary>

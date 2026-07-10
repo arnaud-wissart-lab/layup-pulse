@@ -13,6 +13,7 @@
         <ResourceDictionary Source="Resources/StateBadges.xaml" />
         <ResourceDictionary Source="Resources/DataGrid.xaml" />
         <ResourceDictionary Source="Resources/Navigation.xaml" />
+        <ResourceDictionary Source="Resources/Controls.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>

@@ -11,6 +11,8 @@ public interface IMachineSessionService : IAsyncDisposable
 
     public MachineSessionState State { get; }
 
+    public IReadOnlyList<TelemetrySample> GetTelemetryHistorySnapshot();
+
     public Task<MachineSessionOperationResult> ConnectAsync(CancellationToken cancellationToken);
 
     public Task<MachineSessionOperationResult> DisconnectAsync(CancellationToken cancellationToken);

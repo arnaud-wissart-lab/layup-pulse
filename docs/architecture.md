@@ -93,7 +93,8 @@ Acquisition, presentation, and persistence have different responsibilities and m
 | Flow | Initial design target | Behavior |
 | --- | --- | --- |
 | Simulator and acquisition | 20 échantillons par seconde par défaut, configurables de 1 à 50 | Préserver la séquence et la fraîcheur ; ne réaliser aucun travail UI. |
-| UI refresh | Up to 10 refreshes per second | Present the latest sample or a short aggregate; marshal only the bounded update to the dispatcher. |
+| Publication UI | Jusqu’à 10 publications par seconde | Présenter le dernier échantillon et déplacer la tête 3D par transformation réutilisée. |
+| Rendu des graphiques | Jusqu’à 5 rafraîchissements par seconde | Relire l’historique borné, sous-échantillonner à 600 points par signal puis redessiner uniquement si une nouvelle capture existe. |
 | Agrégation future | Une fenêtre par seconde | Produire un résumé borné prêt pour un futur adaptateur de persistance ; aucune écriture EF Core ou SQLite n’existe dans cet incrément. |
 
 Ces cadences sont configurables et restent explicitement séparées. Réduire la cadence UI ne modifie ni l’acquisition, ni l’évaluation des alarmes, ni le déterminisme du simulateur.
@@ -213,4 +214,14 @@ EF Core types and the SQLite `DbContext` remain in Infrastructure. Application d
 
 ## 10. Deferred technology decisions
 
-Les choix EF Core, graphiques, 3D, packaging et distribution restent différés. Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002 et la politique de pipeline/reconnexion dans l’ADR 0003. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+Les choix de packaging et de distribution restent différés. Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002, la politique de pipeline/reconnexion dans l’ADR 0003 et le rendu du tableau de bord dans l’ADR 0004. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+
+## 11. Rendu borné du tableau de bord
+
+`OverviewViewModel` obtient une copie du même historique roulant que `TelemetryPipeline` conserve déjà sous les limites simultanées de 60 secondes et 3 000 échantillons. Aucun second tampon non borné n’est créé dans WPF.
+
+`TelemetryChartsControl` utilise ScottPlot.WPF. Un `DispatcherTimer` de 200 ms ne redessine que lorsqu’une nouvelle capture a été publiée. Chaque série est sous-échantillonnée à 600 points au maximum avant rendu. Le minuteur démarre avec `Loaded` et s’arrête avec `Unloaded`, ce qui empêche tout rendu après la fermeture ou lorsque la page n’est plus présentée.
+
+`MachineSceneControl` utilise HelixToolkit.Wpf sur WPF 3D. La géométrie statique du mandrin, du chemin et du repère est créée une seule fois. La tête réutilise un `TranslateTransform3D` dont seules les composantes changent à la cadence UI. Les chemins déposé et restant, limités à 72 points, ne sont découpés qu’au changement d’un palier entier de progression. Helix limite en outre sa boucle de rendu et la scène propose un panneau de repli si son initialisation échoue.
+
+Ces contrôles appartiennent exclusivement à Desktop. Ils ne modifient ni le domaine, ni le contrat gRPC, ni la persistance, ni les règles d’alarme.

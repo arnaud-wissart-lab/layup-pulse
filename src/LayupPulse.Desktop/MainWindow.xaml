@@ -103,14 +103,26 @@
                        TextTrimming="CharacterEllipsis"
                        ToolTip="{Binding LoadedRecipe}" />
           </StackPanel>
-          <StackPanel Width="86"
+          <StackPanel Width="96"
                       Margin="0,0,14,0">
             <TextBlock Style="{StaticResource LabelTextStyle}" Text="PROGRESSION" />
             <TextBlock FontFamily="{StaticResource NumericFont}"
                        FontWeight="SemiBold"
                        Text="{Binding HeaderProgress}" />
+            <ProgressBar Height="4"
+                         Margin="0,4,0,0"
+                         Maximum="100"
+                         Value="{Binding Overview.CycleProgressValue, Mode=OneWay}"
+                         Style="{StaticResource IndustrialProgressBarStyle}" />
           </StackPanel>
-          <StackPanel Width="150">
+          <StackPanel Width="105"
+                      Margin="0,0,14,0">
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="ÂGE TÉLÉMÉTRIE" />
+            <TextBlock FontFamily="{StaticResource NumericFont}"
+                       FontSize="12"
+                       Text="{Binding TelemetryAge}" />
+          </StackPanel>
+          <StackPanel Width="142">
             <TextBlock Style="{StaticResource LabelTextStyle}" Text="HEURE LOCALE" />
             <TextBlock FontFamily="{StaticResource NumericFont}"
                        FontSize="12"

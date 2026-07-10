@@ -8,10 +8,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="HelixToolkit.Wpf" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+    <PackageReference Include="ScottPlot.WPF" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />

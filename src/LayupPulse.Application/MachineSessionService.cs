@@ -55,6 +55,14 @@ public sealed class MachineSessionService : IMachineSessionService
         }
     }
 
+    public IReadOnlyList<TelemetrySample> GetTelemetryHistorySnapshot()
+    {
+        lock (_stateLock)
+        {
+            return _pipeline?.GetHistorySnapshot() ?? Array.Empty<TelemetrySample>();
+        }
+    }
+
     public async Task<MachineSessionOperationResult> ConnectAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();

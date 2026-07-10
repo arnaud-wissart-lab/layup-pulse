@@ -35,6 +35,14 @@ public sealed class OverviewViewModel : ObservableObject
     private string _lastCommandFeedback = "Prêt. Démarrez le simulateur, puis connectez la session.";
     private string _feedbackTone = "Neutral";
     private string _feedbackGlyph = "i";
+    private MachineState _machineStateValue = LayupPulse.Domain.MachineState.Disconnected;
+    private double _headXMillimeters = 100;
+    private double _headYMillimeters = 75;
+    private double _headZMillimeters = 25;
+    private IReadOnlyList<TelemetrySample> _telemetryHistory = Array.Empty<TelemetrySample>();
+    private string _activeAlarmSummary = "Aucune alarme active";
+    private string _latestDiagnosticStatus = "Aucun diagnostic récent";
+    private DateTimeOffset? _lastHistoryRefreshAt;
 
     public OverviewViewModel(IMachineSessionService sessionService, TimeProvider timeProvider)
     {
@@ -226,6 +234,48 @@ public sealed class OverviewViewModel : ObservableObject
         private set => SetProperty(ref _feedbackGlyph, value);
     }
 
+    public MachineState MachineStateValue
+    {
+        get => _machineStateValue;
+        private set => SetProperty(ref _machineStateValue, value);
+    }
+
+    public double HeadXMillimeters
+    {
+        get => _headXMillimeters;
+        private set => SetProperty(ref _headXMillimeters, value);
+    }
+
+    public double HeadYMillimeters
+    {
+        get => _headYMillimeters;
+        private set => SetProperty(ref _headYMillimeters, value);
+    }
+
+    public double HeadZMillimeters
+    {
+        get => _headZMillimeters;
+        private set => SetProperty(ref _headZMillimeters, value);
+    }
+
+    public IReadOnlyList<TelemetrySample> TelemetryHistory
+    {
+        get => _telemetryHistory;
+        private set => SetProperty(ref _telemetryHistory, value);
+    }
+
+    public string ActiveAlarmSummary
+    {
+        get => _activeAlarmSummary;
+        private set => SetProperty(ref _activeAlarmSummary, value);
+    }
+
+    public string LatestDiagnosticStatus
+    {
+        get => _latestDiagnosticStatus;
+        private set => SetProperty(ref _latestDiagnosticStatus, value);
+    }
+
     public void ApplyState(MachineSessionState state)
     {
         _sessionState = state;
@@ -233,6 +283,7 @@ public sealed class OverviewViewModel : ObservableObject
         ConnectionTone = MachineDisplayText.ConnectionTone(state.ConnectionStatus);
         MachineState = MachineDisplayText.MachineState(state.LatestSnapshot.State);
         MachineTone = MachineDisplayText.MachineTone(state.LatestSnapshot.State);
+        MachineStateValue = state.LatestSnapshot.State;
         LoadedRecipe = state.LatestSnapshot.LoadedRecipe?.Name ?? "Aucune recette chargée";
 
         TelemetrySample? telemetry = state.LatestTelemetry;
@@ -247,6 +298,21 @@ public sealed class OverviewViewModel : ObservableObject
         HeaterTemperature = Format(telemetry?.HeaterTemperatureCelsius, "F1", "°C");
         MaterialPressure = Format(telemetry?.MaterialPressureBar, "F2", "bar");
         ProcessHealth = Format(telemetry?.ProcessHealthPercentage, "F1", "%");
+        HeadXMillimeters = telemetry?.HeadXMillimeters ?? 100;
+        HeadYMillimeters = telemetry?.HeadYMillimeters ?? 75;
+        HeadZMillimeters = telemetry?.HeadZMillimeters ?? 25;
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        if (_lastHistoryRefreshAt is null || now - _lastHistoryRefreshAt.Value >= TimeSpan.FromMilliseconds(200))
+        {
+            TelemetryHistory = _sessionService.GetTelemetryHistorySnapshot();
+            _lastHistoryRefreshAt = now;
+        }
+        ActiveAlarmSummary = state.ActiveAlarms.Count == 0
+            ? "Aucune alarme active"
+            : $"{state.ActiveAlarms.Count} alarme(s) active(s) · {state.ActiveAlarms[0].Message}";
+        LatestDiagnosticStatus = state.RecentDiagnostics.Count == 0
+            ? "Aucun diagnostic récent"
+            : state.RecentDiagnostics[0].Message;
         LastTelemetryTimestamp = telemetry is null
             ? "Aucun échantillon reçu"
             : telemetry.Timestamp.ToLocalTime().ToString(
