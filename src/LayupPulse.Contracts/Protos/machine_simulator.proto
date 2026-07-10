@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package layuppulse.v1;
+
+option csharp_namespace = "LayupPulse.Contracts.Grpc";
+
+import "google/protobuf/timestamp.proto";
+
+// Expose uniquement les opérations du démonstrateur de cellule fictive.
+service MachineSimulator {
+  rpc GetSnapshot (GetSnapshotRequest) returns (MachineSnapshotMessage);
+  rpc StreamTelemetry (StreamTelemetryRequest) returns (stream TelemetryMessage);
+  rpc ExecuteCommand (ExecuteCommandRequest) returns (CommandResultMessage);
+  rpc InjectFault (InjectFaultRequest) returns (CommandResultMessage);
+  rpc ClearFault (ClearFaultRequest) returns (CommandResultMessage);
+}
+
+enum MachineState {
+  MACHINE_STATE_UNSPECIFIED = 0;
+  MACHINE_STATE_DISCONNECTED = 1;
+  MACHINE_STATE_CONNECTING = 2;
+  MACHINE_STATE_READY = 3;
+  MACHINE_STATE_RUNNING = 4;
+  MACHINE_STATE_PAUSED = 5;
+  MACHINE_STATE_FAULTED = 6;
+  MACHINE_STATE_COMPLETED = 7;
+}
+
+enum CommandType {
+  COMMAND_TYPE_UNSPECIFIED = 0;
+  COMMAND_TYPE_CONNECT = 1;
+  COMMAND_TYPE_DISCONNECT = 2;
+  COMMAND_TYPE_LOAD_RECIPE = 3;
+  COMMAND_TYPE_START = 4;
+  COMMAND_TYPE_PAUSE = 5;
+  COMMAND_TYPE_RESUME = 6;
+  COMMAND_TYPE_STOP = 7;
+  COMMAND_TYPE_RESET = 8;
+}
+
+enum SimulatedFault {
+  SIMULATED_FAULT_NONE = 0;
+  SIMULATED_FAULT_OVER_TEMPERATURE = 1;
+  SIMULATED_FAULT_LOW_MATERIAL_PRESSURE = 2;
+  SIMULATED_FAULT_UNSTABLE_COMPACTION_FORCE = 3;
+  SIMULATED_FAULT_HEAD_POSITION_ERROR = 4;
+  SIMULATED_FAULT_COMMUNICATION_DROP = 5;
+}
+
+enum RejectionReason {
+  REJECTION_REASON_NONE = 0;
+  REJECTION_REASON_INVALID_REQUEST = 1;
+  REJECTION_REASON_INVALID_STATE = 2;
+  REJECTION_REASON_RECIPE_REQUIRED = 3;
+  REJECTION_REASON_UNKNOWN_RECIPE = 4;
+  REJECTION_REASON_INVALID_RECIPE = 5;
+  REJECTION_REASON_PRODUCTION_RUN_MISSING = 6;
+  REJECTION_REASON_FAULT_REQUIRED = 7;
+  REJECTION_REASON_FAULT_NOT_ACTIVE = 8;
+  REJECTION_REASON_ACTIVE_FAULT_REMAINS = 9;
+  REJECTION_REASON_UNSUPPORTED_COMMAND = 10;
+}
+
+message GetSnapshotRequest {
+}
+
+message StreamTelemetryRequest {
+}
+
+message ExecuteCommandRequest {
+  string correlation_id = 1;
+  CommandType command = 2;
+  string recipe_id = 3;
+}
+
+message InjectFaultRequest {
+  string correlation_id = 1;
+  SimulatedFault fault = 2;
+}
+
+message ClearFaultRequest {
+  string correlation_id = 1;
+  SimulatedFault fault = 2;
+}
+
+message CommandResultMessage {
+  string correlation_id = 1;
+  CommandType command = 2;
+  bool accepted = 3;
+  RejectionReason rejection_reason = 4;
+  string rejection_detail = 5;
+  MachineState machine_state = 6;
+}
+
+message RecipeSummaryMessage {
+  string id = 1;
+  string name = 2;
+  string part_reference = 3;
+  double target_temperature_celsius = 4;
+  double target_pressure_bar = 5;
+  double target_feed_rate_millimeters_per_second = 6;
+  int32 pass_count = 7;
+  double estimated_duration_seconds = 8;
+}
+
+message MachineSnapshotMessage {
+  MachineState machine_state = 1;
+  TelemetryMessage telemetry = 2;
+  repeated SimulatedFault active_faults = 3;
+  RecipeSummaryMessage loaded_recipe = 4;
+}
+
+message TelemetryMessage {
+  int64 sequence_number = 1;
+  google.protobuf.Timestamp timestamp_utc = 2;
+  MachineState machine_state = 3;
+  double head_x_millimeters = 4;
+  double head_y_millimeters = 5;
+  double head_z_millimeters = 6;
+  double target_feed_rate_millimeters_per_second = 7;
+  double actual_feed_rate_millimeters_per_second = 8;
+  double compaction_force_newtons = 9;
+  double heater_temperature_celsius = 10;
+  double material_pressure_bar = 11;
+  double cycle_progress_percentage = 12;
+  double process_health_percentage = 13;
+  repeated SimulatedFault active_faults = 14;
+}

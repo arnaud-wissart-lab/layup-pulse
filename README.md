@@ -4,9 +4,9 @@ LayupPulse is an independent Windows desktop demonstrator for supervising a simu
 
 LayupPulse is not affiliated with any industrial company and does not reproduce any existing product, visual identity, proprietary data, or presumed implementation. It is not designed, validated, or safe for controlling real industrial hardware.
 
-## Current status
+## État actuel
 
-This repository currently contains the buildable project foundation and the initial product and architecture documentation. Telemetry, gRPC, persistence, charts, machine simulation, alarms, and 3D visualization are intentionally deferred to later implementation phases.
+Le dépôt contient le socle .NET, le modèle de domaine déterministe et un processus gRPC autonome simulant une cellule fictive. La persistance, le client gRPC du bureau, les graphiques, les alarmes applicatives et la visualisation 3D restent différés. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
 
 ## Technology baseline
 
@@ -56,6 +56,34 @@ dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj
 ```
 
 The current window is only a minimal application shell. It does not connect to or control a machine.
+
+## Lancer le simulateur local
+
+Le point d’écoute par défaut est `http://127.0.0.1:5057` en HTTP/2 local sans chiffrement. La graine par défaut est `24117` et la télémétrie est publiée à `20 Hz`.
+
+```powershell
+./scripts/run-simulator.ps1
+```
+
+Les trois paramètres sont configurables sans chemin propre à une machine :
+
+```powershell
+./scripts/run-simulator.ps1 `
+  -Endpoint "http://127.0.0.1:5058" `
+  -Seed 1729 `
+  -TelemetryRateHz 25
+```
+
+La même configuration peut être fournie directement à ASP.NET Core :
+
+```powershell
+dotnet run --project src/LayupPulse.Simulator/LayupPulse.Simulator.csproj -- `
+  --Simulator:Endpoint=http://127.0.0.1:5058 `
+  --Simulator:Seed=1729 `
+  --Simulator:TelemetryRateHz=25
+```
+
+La fréquence acceptée est comprise entre 1 et 50 Hz. Les valeurs par défaut sont versionnées dans `appsettings.json` et `appsettings.Development.json` du projet Simulator. La console affiche au démarrage le point d’écoute, la graine et la fréquence effectifs.
 
 ## License
 

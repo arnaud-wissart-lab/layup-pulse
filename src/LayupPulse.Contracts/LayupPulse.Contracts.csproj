@@ -4,4 +4,15 @@
     <RootNamespace>LayupPulse.Contracts</RootNamespace>
     <AssemblyName>LayupPulse.Contracts</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Core.Api" />
+    <PackageReference Include="Grpc.Tools">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="Protos\machine_simulator.proto" GrpcServices="Both" />
+  </ItemGroup>
 </Project>

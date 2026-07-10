@@ -4,7 +4,7 @@
 
 LayupPulse separates business concepts, use cases, transport contracts, concrete technology adapters, process hosting, and WPF presentation. The dependency direction keeps the deterministic machine model testable without WPF, EF Core, SQLite, ASP.NET Core, or a concrete gRPC client.
 
-The desktop application and simulator are separate processes. A future gRPC transport will connect them, while in-process domain and application code remain transport-independent.
+L’application de bureau et le simulateur sont des processus distincts. Le simulateur expose désormais un contrat gRPC versionné ; le client de bureau reste différé. Le domaine et l’application demeurent indépendants du transport.
 
 ## 2. Project responsibilities
 
@@ -12,9 +12,9 @@ The desktop application and simulator are separate processes. A future gRPC tran
 | --- | --- |
 | `LayupPulse.Domain` | Machine states, valid transitions, command rules, telemetry value objects, alarms, recipes, and production-run rules. It has no solution-project dependency. |
 | `LayupPulse.Application` | Use-case orchestration, technology-neutral ports, cancellation boundaries, and application-level results. It may reference Domain only. |
-| `LayupPulse.Contracts` | Versioned gRPC messages and transport-facing contracts shared by client and server. It must not contain WPF or persistence concerns. |
+| `LayupPulse.Contracts` | Messages protobuf `layuppulse.v1` et types gRPC générés partagés par le client et le serveur. Le projet ne contient aucune préoccupation WPF ou de persistance. |
 | `LayupPulse.Infrastructure` | Concrete gRPC gateway, EF Core and SQLite persistence, clocks, and other adapters. It implements Application ports and maps Contracts to Domain. |
-| `LayupPulse.Simulator` | Separate process host for the deterministic simulated cell and future gRPC server. It does not contain desktop UI or persistence implementation. |
+| `LayupPulse.Simulator` | Processus ASP.NET Core séparé, moteur déterministe, mappings explicites et serveur gRPC. Il ne contient ni interface de bureau ni persistance. |
 | `LayupPulse.Desktop` | WPF views, bounded ViewModels, desktop services, and the application composition root. ViewModels consume application-facing abstractions and never a `DbContext`. |
 | `LayupPulse.Tests` | Unit, integration, architecture, cancellation, and deterministic scenario tests. |
 
@@ -52,7 +52,15 @@ flowchart LR
     Tests -. tests .-> Application
 ```
 
-## 4. Future machine gateway
+## 4. Transport gRPC et futur machine gateway
+
+Le fichier `machine_simulator.proto` définit les opérations `GetSnapshot`, `StreamTelemetry`, `ExecuteCommand`, `InjectFault` et `ClearFault`. Les messages restent orientés transport : ils portent des identifiants, des enums et des valeurs scalaires versionnés, jamais les objets du domaine. Les mappings manuels résident dans Simulator, seule couche serveur qui dépend simultanément du domaine et des contrats générés.
+
+`StreamTelemetry` est un flux serveur. Un service hébergé produit un seul tick partagé à la fréquence configurée puis distribue les échantillons dans des canaux bornés propres aux abonnés. Le nombre de clients ne modifie donc ni la cadence ni la progression. `Disconnect` termine proprement les flux actifs. `CommunicationDrop` les termine avec le statut gRPC `Unavailable` sans arrêter le serveur, afin que `ClearFault` reste joignable et qu’un nouveau flux puisse être créé après rétablissement.
+
+Le point d’écoute de développement par défaut est `http://127.0.0.1:5057`, en HTTP/2 clair limité à l’interface de bouclage. Cette configuration est destinée uniquement au développement local du démonstrateur fictif ; elle ne constitue pas un modèle de déploiement industriel sécurisé.
+
+Le port applicatif `IMachineGateway` représente toujours la future session côté bureau sans exposer les types gRPC. Sa forme actuelle est :
 
 `IMachineGateway` will be an Application-layer port representing a machine session without exposing gRPC types. A future shape is:
 
@@ -77,7 +85,7 @@ Acquisition, presentation, and persistence have different responsibilities and m
 
 | Flow | Initial design target | Behavior |
 | --- | --- | --- |
-| Simulator and acquisition | Up to 50 samples per second | Preserve sequence and freshness information; perform no UI work. |
+| Simulator and acquisition | 20 échantillons par seconde par défaut, configurables de 1 à 50 | Préserver la séquence et la fraîcheur ; ne réaliser aucun travail UI. |
 | UI refresh | Up to 10 refreshes per second | Present the latest sample or a short aggregate; marshal only the bounded update to the dispatcher. |
 | Database persistence | About 2 telemetry snapshots per second, plus immediate events | Store sampled trend data; persist commands, state transitions, alarms, and run boundaries without downsampling. |
 
@@ -114,4 +122,4 @@ EF Core types and the SQLite `DbContext` remain in Infrastructure. Application d
 
 ## 10. Deferred technology decisions
 
-gRPC packages, EF Core packages, charting libraries, 3D implementation details, logging providers, dependency-injection packages, and packaging tools will be selected in the phase that needs them. Stable packages only are allowed, and each selection must be justified against the smallest working design.
+Les choix EF Core, graphiques, 3D, packaging et client gRPC Infrastructure restent différés. Le transport Simulator utilise `Grpc.AspNetCore`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.

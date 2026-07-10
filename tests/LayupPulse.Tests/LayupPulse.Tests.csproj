@@ -6,6 +6,7 @@
     <AssemblyName>LayupPulse.Tests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -16,5 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\LayupPulse.Domain\LayupPulse.Domain.csproj" />
     <ProjectReference Include="..\..\src\LayupPulse.Application\LayupPulse.Application.csproj" />
+    <ProjectReference Include="..\..\src\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\LayupPulse.Simulator\LayupPulse.Simulator.csproj" />
   </ItemGroup>
 </Project>

@@ -99,6 +99,12 @@ Each telemetry sample contains:
 
 Units, ranges, precision, freshness thresholds, and quality indicators will be defined with the domain model. The timestamp and sequence number allow the client to detect stale, missing, duplicated, or reordered samples.
 
+### Profil initial du simulateur
+
+La fréquence par défaut est de 20 Hz et peut être configurée de 1 à 50 Hz. À graine, séquence de commandes et nombre de ticks identiques, les valeurs synthétiques sont reproductibles. Le chemin suit huit passes raster fictives : X évolue approximativement de 100 à 900 mm, Y de 75 à 390 mm et Z autour de 25 mm. La progression n’avance qu’en état `Running` et atteint exactement 100 % avant la transition vers `Completed`.
+
+Pour la recette intégrée `Wing Panel Demo`, la consigne de débit est de 120 mm/s et le débit réel y converge avec une rampe de 80 mm/s². La température converge vers 145 °C au lieu de varier sans borne. En cycle normal, la pression reste autour de 6 bar (± 0,04 bar) et la force de compactage autour de 450 N (± 5 N). Ces plages sont des choix purement fictifs destinés aux tests et à la démonstration logicielle ; elles ne constituent pas des paramètres de procédé réels.
+
 ## 8. Alarms
 
 The initial alarm catalog contains:
@@ -168,6 +174,12 @@ Suspend or stop the simulator while connected. The desktop detects stale telemet
 Inject a divergence between target and actual head position. The run transitions according to the fault policy and preserves the reason in production history.
 
 Fault scenarios must be reproducible through explicit seeds or scripted profiles so automated tests and demonstrations observe the same state transitions.
+
+### Noms du contrat d’injection
+
+Le contrat gRPC expose exactement `OverTemperature`, `LowMaterialPressure`, `UnstableCompactionForce`, `HeadPositionError` et `CommunicationDrop`. Le mapping serveur relie explicitement `OverTemperature` au concept métier de température élevée et `CommunicationDrop` au concept métier de délai de communication dépassé. Cette différence de vocabulaire ne fuit pas dans les objets du domaine.
+
+Tous les défauts de procédé injectés sont bloquants dans le premier profil : la télémétrie reflète la condition et la machine passe à `Faulted`. `CommunicationDrop` interrompt le flux avec un statut transport détectable, sans bloquer ni arrêter le serveur ; après `ClearFault`, un nouveau flux peut être ouvert puis la machine peut être réinitialisée. Aucune commande n’est présentée comme un arrêt d’urgence : `Stop` demeure un arrêt normal du procédé fictif.
 
 ## 11. Non-goals
 
