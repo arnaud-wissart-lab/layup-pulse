@@ -6,7 +6,16 @@ LayupPulse is not affiliated with any industrial company and does not reproduce 
 
 ## État actuel
 
-Le dépôt contient le socle .NET, le modèle de domaine déterministe et un processus gRPC autonome simulant une cellule fictive. La persistance, le client gRPC du bureau, les graphiques, les alarmes applicatives et la visualisation 3D restent différés. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
+Le dépôt contient désormais un premier démonstrateur utilisable de bout en bout :
+
+- un simulateur gRPC autonome et déterministe ;
+- une application WPF hébergée par le Generic Host ;
+- une connexion configurable avec lecture d’instantané et télémétrie continue ;
+- les commandes de connexion, chargement de la recette fictive, démarrage, pause, reprise, arrêt, reset et déconnexion ;
+- une vue d’ensemble temps réel et une page de diagnostics ;
+- des pages Alarmes et Historique qui indiquent explicitement leur report.
+
+La persistance EF Core/SQLite, les alarmes applicatives, l’historique, les graphiques avancés et la visualisation 3D ne sont pas implémentés dans cet incrément. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
 
 ## Technology baseline
 
@@ -24,7 +33,7 @@ Le dépôt contient le socle .NET, le modèle de domaine déterministe et un pro
 | `LayupPulse.Domain` | Technology-independent machine and production rules |
 | `LayupPulse.Application` | Use cases and technology-neutral ports |
 | `LayupPulse.Contracts` | Transport contracts shared across process boundaries |
-| `LayupPulse.Infrastructure` | Future gRPC, EF Core, SQLite, and operating-system adapters |
+| `LayupPulse.Infrastructure` | Client gRPC et futurs adaptateurs de persistance |
 | `LayupPulse.Simulator` | Separate simulated machine process |
 | `LayupPulse.Desktop` | WPF operator application and composition root |
 | `LayupPulse.Tests` | Automated tests and architecture boundary checks |
@@ -37,7 +46,16 @@ Le dépôt contient le socle .NET, le modèle de domaine déterministe et un pro
 - [UI specification](docs/ui-specification.md)
 - [Architecture decisions](docs/decisions/README.md)
 
-## Build and validation
+## Prérequis
+
+- Windows 10 ou Windows 11 pour l’application WPF ;
+- SDK .NET 10 correspondant à la version épinglée dans `global.json` ;
+- port local `5057` disponible, ou un autre point d’accès configuré pour les deux processus ;
+- aucune base de données ni service externe.
+
+Le transport local par défaut utilise HTTP/2 sans chiffrement sur `http://127.0.0.1:5057`. Cette configuration est réservée au démonstrateur local.
+
+## Build et validation
 
 The pinned .NET 10 SDK must be installed. On Windows, run from the repository root:
 
@@ -48,14 +66,6 @@ dotnet build LayupPulse.sln -c Release --no-restore
 dotnet test LayupPulse.sln -c Release --no-build
 git diff --check
 ```
-
-The WPF application can later be launched with:
-
-```powershell
-dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj
-```
-
-The current window is only a minimal application shell. It does not connect to or control a machine.
 
 ## Lancer le simulateur local
 
@@ -84,6 +94,32 @@ dotnet run --project src/LayupPulse.Simulator/LayupPulse.Simulator.csproj -- `
 ```
 
 La fréquence acceptée est comprise entre 1 et 50 Hz. Les valeurs par défaut sont versionnées dans `appsettings.json` et `appsettings.Development.json` du projet Simulator. La console affiche au démarrage le point d’écoute, la graine et la fréquence effectifs.
+
+## Lancer l’application de bureau
+
+Dans un second terminal PowerShell, depuis la racine du dépôt :
+
+```powershell
+dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj
+```
+
+Le point d’accès est défini dans `src/LayupPulse.Desktop/appsettings.json`. Il peut être remplacé par la ligne de commande :
+
+```powershell
+dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj -- `
+  --Machine:Endpoint=http://127.0.0.1:5058
+```
+
+Séquence de démonstration disponible :
+
+1. cliquer sur **Connecter** ;
+2. charger **Wing Panel Demo** ;
+3. démarrer le cycle ;
+4. observer la télémétrie et la progression ;
+5. mettre en pause, reprendre, puis arrêter ;
+6. se déconnecter.
+
+Les boutons ne sont activés que lorsque la règle métier correspondante est satisfaite. Une indisponibilité du simulateur ou un rejet de commande reste visible et récupérable dans l’interface.
 
 ## License
 

@@ -1,0 +1,234 @@
+<UserControl x:Class="LayupPulse.Desktop.Views.OverviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
+             Background="{StaticResource WindowBackgroundBrush}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto"
+                HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="24,20,24,28">
+      <TextBlock Style="{StaticResource PageTitleStyle}" Text="Vue d’ensemble" />
+      <TextBlock Margin="0,4,0,18"
+                 Foreground="{StaticResource SecondaryTextBrush}"
+                 Text="État courant et signaux de la cellule de dépose fictive." />
+
+      <Grid Margin="0,0,0,14">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="12" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="SESSION MACHINE" />
+            <WrapPanel Margin="0,9,0,5">
+              <Border Margin="0,0,8,8"
+                      Style="{StaticResource StateBadgeStyle}"
+                      Tag="{Binding ConnectionTone}">
+                <TextBlock FontWeight="SemiBold" Text="{Binding ConnectionStatus}" />
+              </Border>
+              <Border Margin="0,0,8,8"
+                      Style="{StaticResource StateBadgeStyle}"
+                      Tag="{Binding MachineTone}">
+                <TextBlock FontWeight="SemiBold" Text="{Binding MachineState}" />
+              </Border>
+            </WrapPanel>
+            <TextBlock Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="{Binding LoadedRecipe}" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="2"
+                Style="{StaticResource CardStyle}"
+                Tag="{Binding FeedbackTone}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="DERNIER RÉSULTAT" />
+            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+              <TextBlock Width="22"
+                         FontSize="17"
+                         FontWeight="Bold"
+                         Text="{Binding FeedbackGlyph}" />
+              <TextBlock Text="{Binding LastCommandFeedback}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Margin="0,0,0,14" Style="{StaticResource CardStyle}">
+        <StackPanel>
+          <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Commandes opérateur" />
+          <TextBlock Margin="0,5,0,12"
+                     Foreground="{StaticResource SecondaryTextBrush}"
+                     Text="{Binding AvailabilityMessage}"
+                     TextWrapping="Wrap" />
+          <WrapPanel>
+            <Button automation:AutomationProperties.AutomationId="ConnectButton"
+                    automation:AutomationProperties.Name="Connecter le simulateur"
+                    Command="{Binding ConnectCommand}"
+                    Content="Connecter"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="DisconnectButton"
+                    automation:AutomationProperties.Name="Déconnecter le simulateur"
+                    Command="{Binding DisconnectCommand}"
+                    Content="Déconnecter"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="LoadRecipeButton"
+                    automation:AutomationProperties.Name="Charger la recette de démonstration"
+                    Command="{Binding LoadDemoRecipeCommand}"
+                    Content="Charger la recette démo"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="StartButton"
+                    automation:AutomationProperties.Name="Démarrer le cycle"
+                    Command="{Binding StartCommand}"
+                    Content="Démarrer"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="PauseButton"
+                    automation:AutomationProperties.Name="Mettre le cycle en pause"
+                    Command="{Binding PauseCommand}"
+                    Content="Pause"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="ResumeButton"
+                    automation:AutomationProperties.Name="Reprendre le cycle"
+                    Command="{Binding ResumeCommand}"
+                    Content="Reprendre"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="StopButton"
+                    automation:AutomationProperties.Name="Arrêter le cycle simulé"
+                    Command="{Binding StopCommand}"
+                    Content="Arrêter"
+                    Style="{StaticResource DangerButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+            <Button automation:AutomationProperties.AutomationId="ResetButton"
+                    automation:AutomationProperties.Name="Réinitialiser la machine simulée"
+                    Command="{Binding ResetCommand}"
+                    Content="Réinitialiser"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    ToolTip="{Binding AvailabilityMessage}" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Margin="0,0,0,14" Style="{StaticResource CardStyle}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Progression du cycle" />
+          <TextBlock Grid.Column="1"
+                     FontFamily="{StaticResource NumericFont}"
+                     FontWeight="SemiBold"
+                     Text="{Binding CycleProgress}" />
+          <ProgressBar Grid.Row="1"
+                       Grid.ColumnSpan="2"
+                       Height="10"
+                       Margin="0,12,0,0"
+                       Background="{StaticResource DisabledSurfaceBrush}"
+                       Foreground="{StaticResource AccentBrush}"
+                       Maximum="100"
+                       Value="{Binding CycleProgressValue, Mode=OneWay}"
+                       automation:AutomationProperties.Name="Progression du cycle simulé" />
+        </Grid>
+      </Border>
+
+      <TextBlock Margin="0,2,0,10"
+                 Style="{StaticResource SectionTitleStyle}"
+                 Text="Télémétrie la plus récente" />
+      <UniformGrid Columns="3">
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="TÊTE · AXE X" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding HeadX}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="TÊTE · AXE Y" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding HeadY}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="TÊTE · AXE Z" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding HeadZ}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="DÉBIT CIBLE" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding TargetFeedRate}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="DÉBIT RÉEL" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding ActualFeedRate}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="FORCE DE COMPACTAGE" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding CompactionForce}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="TEMPÉRATURE CHAUFFAGE" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding HeaterTemperature}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="PRESSION MATÉRIAU" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding MaterialPressure}" />
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource KpiCardStyle}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="SANTÉ DU PROCÉDÉ" />
+            <TextBlock Style="{StaticResource NumericValueStyle}" Text="{Binding ProcessHealth}" />
+          </StackPanel>
+        </Border>
+      </UniformGrid>
+
+      <Border Style="{StaticResource CardStyle}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel>
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="DERNIER ÉCHANTILLON" />
+            <TextBlock Margin="0,4,0,0"
+                       FontFamily="{StaticResource NumericFont}"
+                       Text="{Binding LastTelemetryTimestamp}"
+                       automation:AutomationProperties.AutomationId="TelemetryTimestampValue" />
+            <TextBlock Margin="0,6,0,0"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="{Binding TelemetryQuality}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Margin="24,0,0,0">
+            <TextBlock Style="{StaticResource LabelTextStyle}" Text="SÉQUENCE" />
+            <TextBlock Margin="0,4,0,0"
+                       FontFamily="{StaticResource NumericFont}"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Text="{Binding SequenceNumber}"
+                       automation:AutomationProperties.AutomationId="TelemetrySequenceValue"
+                       automation:AutomationProperties.Name="{Binding SequenceNumber}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

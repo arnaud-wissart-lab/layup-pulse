@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>LayupPulse.Tests</RootNamespace>
     <AssemblyName>LayupPulse.Tests</AssemblyName>
@@ -18,6 +19,8 @@
     <ProjectReference Include="..\..\src\LayupPulse.Domain\LayupPulse.Domain.csproj" />
     <ProjectReference Include="..\..\src\LayupPulse.Application\LayupPulse.Application.csproj" />
     <ProjectReference Include="..\..\src\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\LayupPulse.Desktop\LayupPulse.Desktop.csproj" />
     <ProjectReference Include="..\..\src\LayupPulse.Simulator\LayupPulse.Simulator.csproj" />
+    <ProjectReference Include="..\..\src\LayupPulse.Infrastructure\LayupPulse.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

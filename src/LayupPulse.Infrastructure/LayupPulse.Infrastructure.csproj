@@ -5,6 +5,10 @@
     <AssemblyName>LayupPulse.Infrastructure</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
     <ProjectReference Include="..\LayupPulse.Application\LayupPulse.Application.csproj" />
     <ProjectReference Include="..\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />

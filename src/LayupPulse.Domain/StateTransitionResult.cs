@@ -25,10 +25,16 @@ public sealed class StateTransitionResult
 
     public StateTransitionRejection? Rejection { get; }
 
-    internal static StateTransitionResult Accepted(MachineState previousState, MachineSnapshot snapshot) =>
+    /// <summary>
+    /// Reconstitue un résultat accepté à une frontière applicative qui possède déjà l’état final validé.
+    /// </summary>
+    public static StateTransitionResult Accepted(MachineState previousState, MachineSnapshot snapshot) =>
         new(true, previousState, snapshot, null);
 
-    internal static StateTransitionResult Rejected(
+    /// <summary>
+    /// Reconstitue un résultat rejeté à une frontière applicative à partir d’un rejet structuré.
+    /// </summary>
+    public static StateTransitionResult Rejected(
         MachineSnapshot snapshot,
         StateTransitionRejection rejection) =>
         new(false, snapshot.State, snapshot, rejection);

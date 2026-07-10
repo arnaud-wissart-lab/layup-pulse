@@ -1,3 +1,4 @@
+using System.IO;
 using System.Xml.Linq;
 using Xunit;
 
@@ -18,7 +19,14 @@ public sealed class ProjectDependencyTests
             ["LayupPulse.Desktop"] =
                 ["LayupPulse.Application", "LayupPulse.Contracts", "LayupPulse.Domain", "LayupPulse.Infrastructure"],
             ["LayupPulse.Tests"] =
-                ["LayupPulse.Application", "LayupPulse.Contracts", "LayupPulse.Domain", "LayupPulse.Simulator"],
+                [
+                    "LayupPulse.Application",
+                    "LayupPulse.Contracts",
+                    "LayupPulse.Desktop",
+                    "LayupPulse.Domain",
+                    "LayupPulse.Infrastructure",
+                    "LayupPulse.Simulator",
+                ],
         };
 
     [Fact]

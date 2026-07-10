@@ -1,0 +1,28 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style x:Key="StateBadgeStyle" TargetType="Border">
+    <Setter Property="Padding" Value="9,5" />
+    <Setter Property="Background" Value="{StaticResource PanelRaisedBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Style.Triggers>
+      <Trigger Property="Tag" Value="Healthy">
+        <Setter Property="Background" Value="{StaticResource HealthySurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource HealthyBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Warning">
+        <Setter Property="Background" Value="{StaticResource WarningSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource WarningBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Danger">
+        <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+      </Trigger>
+      <Trigger Property="Tag" Value="Info">
+        <Setter Property="Background" Value="{StaticResource InfoSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+</ResourceDictionary>

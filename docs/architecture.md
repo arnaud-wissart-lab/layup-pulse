@@ -52,7 +52,7 @@ flowchart LR
     Tests -. tests .-> Application
 ```
 
-## 4. Transport gRPC et futur machine gateway
+## 4. Transport gRPC et passerelle machine
 
 Le fichier `machine_simulator.proto` définit les opérations `GetSnapshot`, `StreamTelemetry`, `ExecuteCommand`, `InjectFault` et `ClearFault`. Les messages restent orientés transport : ils portent des identifiants, des enums et des valeurs scalaires versionnés, jamais les objets du domaine. Les mappings manuels résident dans Simulator, seule couche serveur qui dépend simultanément du domaine et des contrats générés.
 
@@ -60,24 +60,29 @@ Le fichier `machine_simulator.proto` définit les opérations `GetSnapshot`, `St
 
 Le point d’écoute de développement par défaut est `http://127.0.0.1:5057`, en HTTP/2 clair limité à l’interface de bouclage. Cette configuration est destinée uniquement au développement local du démonstrateur fictif ; elle ne constitue pas un modèle de déploiement industriel sécurisé.
 
-Le port applicatif `IMachineGateway` représente toujours la future session côté bureau sans exposer les types gRPC. Sa forme actuelle est :
+Le port applicatif `IMachineGateway` représente la session côté bureau sans exposer les types gRPC. `GrpcMachineGateway`, dans Infrastructure, crée un canal par session, traduit les messages protobuf en objets du domaine, applique un délai aux appels unitaires et libère le canal lors de la déconnexion ou de la destruction de l’hôte. Les défauts injectables sont isolés derrière `IDemoFaultGateway` afin de ne pas les confondre avec une capacité machine générale.
 
-`IMachineGateway` will be an Application-layer port representing a machine session without exposing gRPC types. A future shape is:
+Sa forme est :
 
 ```csharp
 public interface IMachineGateway : IAsyncDisposable
 {
-    Task ConnectAsync(CancellationToken cancellationToken);
-    Task DisconnectAsync(CancellationToken cancellationToken);
-    Task<CommandResult> SendCommandAsync(
+    Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken);
+    Task DisconnectAsync(IMachineSession session, CancellationToken cancellationToken);
+    Task<CommandResult> ExecuteCommandAsync(
+        IMachineSession session,
         MachineCommand command,
         CancellationToken cancellationToken);
-    IAsyncEnumerable<MachineTelemetry> StreamTelemetryAsync(
+    Task<MachineSnapshot> GetSnapshotAsync(
+        IMachineSession session,
+        CancellationToken cancellationToken);
+    IAsyncEnumerable<TelemetrySample> StreamTelemetryAsync(
+        IMachineSession session,
         CancellationToken cancellationToken);
 }
 ```
 
-The exact domain types will be introduced with the state model. Infrastructure will implement this port with a concrete gRPC client and map versioned Contracts into Domain values. Desktop ViewModels will call use-case services rather than constructing or resolving the gateway themselves.
+`MachineSessionService` orchestre une seule session active, conserve le dernier instantané et le dernier échantillon, annule le flux à la déconnexion, détecte la fraîcheur et publie directement des changements immuables. Ces notifications sont coalescées à 10 Hz au maximum ; le shell WPF les remarshal ensuite sur son Dispatcher. Les ViewModels ne construisent et ne résolvent jamais la passerelle.
 
 ## 5. Data-rate separation
 
@@ -122,4 +127,4 @@ EF Core types and the SQLite `DbContext` remain in Infrastructure. Application d
 
 ## 10. Deferred technology decisions
 
-Les choix EF Core, graphiques, 3D, packaging et client gRPC Infrastructure restent différés. Le transport Simulator utilise `Grpc.AspNetCore`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+Les choix EF Core, graphiques, 3D, packaging et distribution restent différés. Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement et la durée de vie de la session Desktop sont consignés dans l’ADR 0002. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.

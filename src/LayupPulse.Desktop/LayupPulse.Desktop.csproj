@@ -7,9 +7,21 @@
     <AssemblyName>LayupPulse.Desktop</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
     <ProjectReference Include="..\LayupPulse.Application\LayupPulse.Application.csproj" />
     <ProjectReference Include="..\LayupPulse.Infrastructure\LayupPulse.Infrastructure.csproj" />
     <ProjectReference Include="..\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
