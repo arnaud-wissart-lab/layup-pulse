@@ -1,76 +1,221 @@
 # LayupPulse
 
-LayupPulse is an independent Windows desktop demonstrator for supervising a simulated automated composite layup cell. It is a portfolio project designed to demonstrate software architecture, asynchronous communication, deterministic simulation, diagnostics, persistence, testing, and industrial-style user experience.
+LayupPulse is an independent WPF industrial software demonstrator for supervising a simulated automated composite layup cell.
 
-LayupPulse is not affiliated with any industrial company and does not reproduce any existing product, visual identity, proprietary data, or presumed implementation. It is not designed, validated, or safe for controlling real industrial hardware.
+It showcases real-time gRPC communication, deterministic machine-state management, asynchronous telemetry processing, alarm lifecycle management, SQLite production history, real-time charts, and 3D visualization.
 
-## État actuel
+[![CI](https://github.com/arnaud-wissart-lab/layup-pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/layup-pulse/actions/workflows/ci.yml)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)
+![Windows](https://img.shields.io/badge/platform-Windows-0078D6)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Le dépôt contient désormais un premier démonstrateur utilisable de bout en bout :
+![LayupPulse overview during a simulated production run](docs/screenshots/overview-running.png)
 
-- un simulateur gRPC autonome et déterministe ;
-- une application WPF hébergée par le Generic Host ;
-- une connexion configurable avec lecture d’instantané et télémétrie continue ;
-- les commandes de connexion, chargement de la recette fictive, démarrage, pause, reprise, arrêt, reset et déconnexion ;
-- une vue d’ensemble temps réel, une page Alarmes fonctionnelle et une page de diagnostics ;
-- un pipeline télémétrique borné avec historique roulant, agrégats d’une seconde et métriques ;
-- cinq règles d’alarme déterministes, leur acquittement et leur historique en mémoire ;
-- une reconnexion automatique bornée et des contrôles d’injection réservés au mode démo ;
-- un tableau de bord industriel compact avec une scène 3D fictive pilotée par la télémétrie ;
-- quatre tendances ScottPlot bornées sur les 60 dernières secondes ;
-- une page Historique qui indique explicitement le report de la persistance.
+> [!IMPORTANT]
+> The current application implements the simulator, gRPC session, bounded telemetry, alarms, charts, and 3D overview. SQLite production-history ports are present, but the concrete store and History page are still being integrated. The corresponding demo step is documented as a target and must not be presented as complete on the current revision.
 
-La persistance EF Core/SQLite et l’historique durable des productions restent en cours d’intégration. Les historiques télémétriques et d’alarmes affichés sont bornés en mémoire. Le simulateur n’est pas conçu pour du matériel industriel réel et ne revendique aucune compatibilité avec celui-ci.
+## Demo
 
-## Socle technique
+The fastest developer workflow is:
 
-- .NET 10 et C# 14 ;
-- WPF ciblant `net10.0-windows` ;
-- gRPC pour la communication entre les processus ;
-- ScottPlot.WPF 5.1.59 pour les tendances temps réel ;
-- HelixToolkit.Wpf 3.1.2, fondé sur WPF 3D, pour la scène de la cellule fictive ;
-- projets au format SDK, références nullables et builds déterministes ;
-- gestion centrale des versions NuGet ;
-- xUnit pour les tests automatisés.
+```powershell
+./scripts/run-demo.ps1
+```
 
-## Captures d’écran
+The script checks the pinned .NET 10 SDK, builds only when outputs are missing or stale, starts the simulator, waits for its local gRPC socket, starts the WPF application, and stops the simulator when the application closes.
 
-La capture ci-dessous montre Overview pendant un cycle simulé à 1280 × 800 points logiques sous une mise à l’échelle Windows de 125 %.
+### Two-minute demo scenario
 
-![Tableau de bord LayupPulse en cycle](docs/screenshots/overview-running.png)
+1. Launch LayupPulse and select **Connect**.
+2. Load **Wing Panel Demo** and select **Start**.
+3. Observe live telemetry, bounded charts, progress, and the moving 3D visualization.
+4. In **Diagnostics**, inject **Over temperature**.
+5. Observe the `Faulted` state and the high-temperature alarm.
+6. In **Alarms**, acknowledge the alarm; acknowledgment does not clear its condition.
+7. Return to **Diagnostics**, clear the fault, then select **Reset**.
+8. Open **History** and show the persisted run once the SQLite integration is complete. On the current revision, identify this page honestly as a known limitation.
+9. Demonstrate communication loss and recovery only after rehearsing it on the target machine.
 
-## Projects
+The timed presenter notes and recovery guidance are in [docs/demo-scenario.md](docs/demo-scenario.md).
 
-| Project | Responsibility |
+## Purpose
+
+LayupPulse is a portfolio demonstrator for software architecture and operator-interface engineering around a fictional composite layup cell. It is designed to make process separation, deterministic behavior, cancellation, bounded high-frequency data handling, diagnostics, and testability visible in a compact Windows application.
+
+It is not a machine controller, safety system, manufacturing execution system, or representation of a real industrial product.
+
+## Features
+
+- Separate deterministic simulator and WPF desktop processes.
+- Versioned protobuf contract and server-streaming gRPC telemetry.
+- Explicit machine commands with correlated acceptance or rejection results.
+- Bounded telemetry acquisition, rolling history, one-second aggregation, and UI coalescing.
+- Automatic serialized reconnection with bounded exponential backoff.
+- Five deterministic simulated fault profiles and alarm rules.
+- Alarm raise, acknowledge, clear, and bounded in-memory history lifecycle.
+- ScottPlot trends capped by time window, refresh rate, and point count.
+- HelixToolkit/WPF 3D visualization driven by coalesced telemetry.
+- Focused unit, architecture, transport, cancellation, and integration tests.
+- Reproducible Windows x64 self-contained packaging and smoke testing.
+
+## Architecture
+
+LayupPulse uses dependency inversion to keep domain and application behavior independent from WPF, gRPC, ASP.NET Core, EF Core, and SQLite.
+
+```mermaid
+flowchart LR
+    Desktop["LayupPulse.Desktop<br/>WPF composition root"] --> Application["LayupPulse.Application<br/>use cases and ports"]
+    Desktop --> Infrastructure["LayupPulse.Infrastructure<br/>gRPC and persistence adapters"]
+    Desktop --> Domain["LayupPulse.Domain<br/>deterministic rules"]
+    Infrastructure --> Application
+    Infrastructure --> Domain
+    Infrastructure --> Contracts["LayupPulse.Contracts<br/>protobuf contract"]
+    Simulator["LayupPulse.Simulator<br/>ASP.NET Core process"] --> Contracts
+    Simulator --> Domain
+    Simulator --> Application
+    Application --> Domain
+    Infrastructure -. "SQLite integration in progress" .-> SQLite[("Local SQLite history")]
+```
+
+Arrows mean “depends on.” Desktop and Simulator are the only composition roots. ViewModels consume application-facing abstractions and never access a `DbContext` directly. See [docs/architecture.md](docs/architecture.md) for the complete boundaries and data-rate design.
+
+## Technology stack
+
+| Area | Technology |
 | --- | --- |
-| `LayupPulse.Domain` | Technology-independent machine and production rules |
-| `LayupPulse.Application` | Use cases and technology-neutral ports |
-| `LayupPulse.Contracts` | Transport contracts shared across process boundaries |
-| `LayupPulse.Infrastructure` | Client gRPC et futurs adaptateurs de persistance |
-| `LayupPulse.Simulator` | Separate simulated machine process |
-| `LayupPulse.Desktop` | WPF operator application and composition root |
-| `LayupPulse.Tests` | Automated tests and architecture boundary checks |
+| Runtime and language | .NET 10, C# 14 |
+| Desktop | WPF on `net10.0-windows` |
+| Inter-process transport | ASP.NET Core gRPC, Grpc.Net.Client, Protocol Buffers |
+| Presentation patterns | CommunityToolkit.Mvvm, Generic Host |
+| Charts | ScottPlot.WPF 5 |
+| 3D visualization | HelixToolkit.Wpf on WPF 3D |
+| Persistence target | EF Core 10 and SQLite; concrete adapter not yet implemented |
+| Tests | xUnit and Microsoft.NET.Test.Sdk |
+| Automation | PowerShell and GitHub Actions on Windows |
 
-## Documentation
+Direct dependency license information is recorded in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-- [Product specification](docs/product-spec.md)
-- [Architecture](docs/architecture.md)
-- [Implementation plan](docs/implementation-plan.md)
-- [UI specification](docs/ui-specification.md)
-- [Architecture decisions](docs/decisions/README.md)
+## Machine state model
 
-## Prérequis
+Commands are valid only in explicit states. Rejected commands return a structured reason and do not silently mutate state.
 
-- Windows 10 ou Windows 11 pour l’application WPF ;
-- SDK .NET 10 correspondant à la version épinglée dans `global.json` ;
-- port local `5057` disponible, ou un autre point d’accès configuré pour les deux processus ;
-- aucune base de données ni service externe.
+```mermaid
+stateDiagram-v2
+    [*] --> Disconnected
+    Disconnected --> Connecting: Connect
+    Connecting --> Ready: Connection established
+    Connecting --> Disconnected: Connection failed
+    Ready --> Running: Load recipe + Start
+    Running --> Paused: Pause
+    Paused --> Running: Resume
+    Running --> Ready: Stop
+    Paused --> Ready: Stop
+    Running --> Completed: Cycle completed
+    Running --> Faulted: Blocking simulated fault
+    Paused --> Faulted: Blocking simulated fault
+    Faulted --> Ready: Clear fault + Reset
+    Completed --> Ready: Reset
+    Ready --> Disconnected: Disconnect
+    Running --> Disconnected: Communication session closed
+    Paused --> Disconnected: Communication session closed
+    Faulted --> Disconnected: Communication session closed
+    Completed --> Disconnected: Communication session closed
+```
 
-Le transport local par défaut utilise HTTP/2 sans chiffrement sur `http://127.0.0.1:5057`. Cette configuration est réservée au démonstrateur local.
+The top-level states are `Disconnected`, `Connecting`, `Ready`, `Running`, `Paused`, `Faulted`, and `Completed`.
 
-## Build et validation
+## Telemetry pipeline
 
-The pinned .NET 10 SDK must be installed. On Windows, run from the repository root:
+The simulator publishes 20 samples per second by default and supports 1–50 Hz. One shared deterministic tick feeds a bounded channel of capacity eight per subscriber using `DropOldest`. The client reads sequentially, evaluates every acquired sample for alarms, retains at most 60 seconds or 3,000 samples, creates at most 60 one-second aggregates, and publishes immutable UI snapshots at up to 10 Hz. Charts redraw at up to 5 Hz and render no more than 600 points per signal.
+
+Sequence numbers make dropped samples observable. Acquisition, aggregation, and rendering rates remain independent, and raw telemetry is never appended directly to an unbounded WPF collection.
+
+## Alarm lifecycle
+
+An alarm moves from `Raised` to `Acknowledged` when the operator confirms awareness, and to `Cleared` only when the simulated condition disappears. A condition may also clear before acknowledgment. Acknowledgment never removes or repairs the underlying condition.
+
+The initial catalog covers high temperature, low material pressure, unstable compaction force, communication timeout, and head-position error. Active alarms are unique by code and source; cleared occurrences remain in a bounded in-memory history.
+
+## Data persistence
+
+The intended persistence boundary uses EF Core and local SQLite behind application ports for production runs, alarm occurrences, and downsampled telemetry aggregates. Domain entities remain independent from EF Core, and history queries are designed to be asynchronous and bounded.
+
+On the current revision, the application-layer contracts and query service exist, but the concrete SQLite store, migrations, recording service, composition, and History ViewModel are not complete. No README or demo should claim that run history survives restart until those pieces and their integration tests are present.
+
+## Getting started
+
+Requirements:
+
+- Windows 10 or Windows 11, x64, for the WPF application.
+- The .NET 10 SDK resolved by [`global.json`](global.json).
+- Local TCP port `5057`, or another loopback endpoint configured for both processes.
+
+Clone and validate:
+
+```powershell
+git clone https://github.com/arnaud-wissart-lab/layup-pulse.git
+cd layup-pulse
+dotnet restore LayupPulse.sln
+dotnet build LayupPulse.sln -c Release --no-restore
+dotnet test LayupPulse.sln -c Release --no-build
+```
+
+The default transport is clear-text HTTP/2 on `http://127.0.0.1:5057`, bound to loopback for local demonstration only.
+
+## Run with one command
+
+Run from the repository root:
+
+```powershell
+./scripts/run-demo.ps1
+```
+
+Force a fresh Release build:
+
+```powershell
+./scripts/run-demo.ps1 -Build
+```
+
+Use an alternate local endpoint and deterministic simulator settings:
+
+```powershell
+./scripts/run-demo.ps1 `
+  -Endpoint "http://127.0.0.1:5058" `
+  -Seed 1729 `
+  -TelemetryRateHz 25
+```
+
+Exercise startup non-interactively:
+
+```powershell
+./scripts/run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5
+```
+
+## Run manually
+
+Start the simulator from the repository root:
+
+```powershell
+dotnet run --project src/LayupPulse.Simulator/LayupPulse.Simulator.csproj -- `
+  --Simulator:Endpoint=http://127.0.0.1:5057
+```
+
+In a second PowerShell terminal, start the desktop application:
+
+```powershell
+dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj -- `
+  --Machine:Endpoint=http://127.0.0.1:5057
+```
+
+The dedicated simulator helper remains available for custom seeds and rates:
+
+```powershell
+./scripts/run-simulator.ps1 -Seed 1729 -TelemetryRateHz 25
+```
+
+## Tests
+
+Run the same local validation sequence used by CI:
 
 ```powershell
 dotnet restore LayupPulse.sln
@@ -80,60 +225,75 @@ dotnet test LayupPulse.sln -c Release --no-build
 git diff --check
 ```
 
-## Lancer le simulateur local
+The suite covers domain transitions, recipe validation, deterministic simulation, fault behavior, alarm rules, bounded telemetry, reconnect serialization, gRPC mapping and process integration, cancellation, ViewModel command feedback, and project dependency directions.
 
-Le point d’écoute par défaut est `http://127.0.0.1:5057` en HTTP/2 local sans chiffrement. La graine par défaut est `24117` et la télémétrie est publiée à `20 Hz`.
+## Packaging
 
-```powershell
-./scripts/run-simulator.ps1
-```
-
-Les trois paramètres sont configurables sans chemin propre à une machine :
+Create and smoke-test a Windows x64 self-contained package:
 
 ```powershell
-./scripts/run-simulator.ps1 `
-  -Endpoint "http://127.0.0.1:5058" `
-  -Seed 1729 `
-  -TelemetryRateHz 25
+./scripts/package-demo.ps1
 ```
 
-La même configuration peut être fournie directement à ASP.NET Core :
+Outputs:
 
-```powershell
-dotnet run --project src/LayupPulse.Simulator/LayupPulse.Simulator.csproj -- `
-  --Simulator:Endpoint=http://127.0.0.1:5058 `
-  --Simulator:Seed=1729 `
-  --Simulator:TelemetryRateHz=25
+```text
+artifacts/
+├── LayupPulse-win-x64/
+│   ├── Desktop/
+│   ├── Simulator/
+│   ├── Run-LayupPulse.cmd
+│   ├── Run-LayupPulse.ps1
+│   ├── README.txt
+│   ├── LICENSE.txt
+│   └── THIRD-PARTY-NOTICES.txt
+└── LayupPulse-win-x64.zip
 ```
 
-La fréquence acceptée est comprise entre 1 et 50 Hz. Les valeurs par défaut sont versionnées dans `appsettings.json` et `appsettings.Development.json` du projet Simulator. La console affiche au démarrage le point d’écoute, la graine et la fréquence effectifs.
+The package is self-contained, preserves native dependencies, does not use single-file publishing, excludes development settings and debug symbols, and runs a startup smoke test before creating the ZIP. `artifacts/` is ignored by Git.
 
-## Lancer l’application de bureau
+## Repository structure
 
-Dans un second terminal PowerShell, depuis la racine du dépôt :
+| Path | Responsibility |
+| --- | --- |
+| `src/LayupPulse.Domain` | Technology-independent state, recipe, alarm, telemetry, and run rules |
+| `src/LayupPulse.Application` | Use cases, ports, session supervision, and bounded telemetry pipeline |
+| `src/LayupPulse.Contracts` | Versioned protobuf and generated gRPC types |
+| `src/LayupPulse.Infrastructure` | Concrete gRPC adapter and persistence integration boundary |
+| `src/LayupPulse.Simulator` | Separate deterministic simulator and gRPC server |
+| `src/LayupPulse.Desktop` | WPF views, ViewModels, controls, and composition root |
+| `tests/LayupPulse.Tests` | Unit, architecture, and integration tests |
+| `docs` | Product, architecture, UI, demo, and decision records |
+| `scripts` | Repeatable development, demo, and packaging automation |
+| `.github/workflows` | Windows continuous integration |
 
-```powershell
-dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj
-```
+## Architecture decisions
 
-Le point d’accès est défini dans `src/LayupPulse.Desktop/appsettings.json`. Il peut être remplacé par la ligne de commande :
+Material decisions are recorded under [docs/decisions](docs/decisions/README.md), including .NET 10, gRPC transport, centralized session ownership, bounded telemetry and reconnect behavior, ScottPlot/WPF 3D visualization, and the planned SQLite aggregation boundary.
 
-```powershell
-dotnet run --project src/LayupPulse.Desktop/LayupPulse.Desktop.csproj -- `
-  --Machine:Endpoint=http://127.0.0.1:5058
-```
+## Known limitations
 
-Séquence de démonstration disponible :
+- The SQLite store and durable History page are not wired on the current revision.
+- The local gRPC endpoint uses clear-text HTTP/2 and has no authentication or remote-deployment hardening.
+- The Windows package is unsigned and may trigger SmartScreen warnings.
+- Charts currently restore a transitive WPF compatibility asset that NuGet reports as targeting .NET Framework; runtime smoke testing mitigates but does not remove this dependency risk.
+- The 3D scene is deliberately simplified and does not import CAD data or represent real equipment geometry.
+- Fault injection is deterministic demonstration behavior, not a model of industrial safety or failure physics.
+- The GitHub Actions workflow requires its first remote run to confirm hosted-runner behavior.
 
-1. cliquer sur **Connecter** ;
-2. charger **Wing Panel Demo** ;
-3. démarrer le cycle ;
-4. observer la scène 3D, la trajectoire déposée, la télémétrie et les tendances sur 60 secondes ;
-5. mettre en pause, reprendre, puis arrêter ;
-6. se déconnecter.
+## Roadmap
 
-Les boutons ne sont activés que lorsque la règle métier correspondante est satisfaite. Une indisponibilité du simulateur ou un rejet de commande reste visible et récupérable dans l’interface.
+- Complete the concrete EF Core/SQLite adapter, migrations, recording orchestration, History ViewModel, and integration tests.
+- Add signed release provenance and a repeatable release workflow after the package format stabilizes.
+- Capture a short, versioned demonstration GIF after the final persistence workflow is available.
+- Continue measuring UI rendering and dependency compatibility before upgrading chart or 3D libraries.
+
+The broader delivery sequence is tracked in [docs/implementation-plan.md](docs/implementation-plan.md).
+
+## Disclaimer
+
+This project is an independent technical demonstrator. It is not affiliated with, endorsed by, or based on proprietary software, machine designs, or production data from any industrial equipment manufacturer. It must not be used to control real machinery or implement safety functions.
 
 ## License
 
-LayupPulse is available under the [MIT License](LICENSE).
+LayupPulse is available under the [MIT License](LICENSE). Third-party components remain subject to their respective licenses as listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

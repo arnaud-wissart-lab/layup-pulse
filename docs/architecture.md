@@ -13,7 +13,7 @@ L’application de bureau et le simulateur sont des processus distincts. Le simu
 | `LayupPulse.Domain` | Machine states, valid transitions, command rules, telemetry value objects, alarms, recipes, and production-run rules. It has no solution-project dependency. |
 | `LayupPulse.Application` | Use-case orchestration, technology-neutral ports, cancellation boundaries, and application-level results. It may reference Domain only. |
 | `LayupPulse.Contracts` | Messages protobuf `layuppulse.v1` et types gRPC générés partagés par le client et le serveur. Le projet ne contient aucune préoccupation WPF ou de persistance. |
-| `LayupPulse.Infrastructure` | Concrete gRPC gateway, EF Core and SQLite persistence, clocks, and other adapters. It implements Application ports and maps Contracts to Domain. |
+| `LayupPulse.Infrastructure` | Concrete gRPC gateway and future persistence adapters. It implements Application ports and maps Contracts to Domain. |
 | `LayupPulse.Simulator` | Processus ASP.NET Core séparé, moteur déterministe, mappings explicites et serveur gRPC. Il ne contient ni interface de bureau ni persistance. |
 | `LayupPulse.Desktop` | WPF views, bounded ViewModels, desktop services, and the application composition root. ViewModels consume application-facing abstractions and never a `DbContext`. |
 | `LayupPulse.Tests` | Unit, integration, architecture, cancellation, and deterministic scenario tests. |
@@ -210,11 +210,13 @@ sequenceDiagram
 
 ## 9. Persistence boundaries
 
-EF Core types and the SQLite `DbContext` remain in Infrastructure. Application defines repository or query ports only when a concrete use case requires them. Domain entities do not depend on EF Core attributes. ViewModels receive application-level read models or services and never query a `DbContext`.
+Les futurs types EF Core et le `DbContext` SQLite resteront dans Infrastructure. Application définit déjà les ports de repository et de requête nécessaires à l’intégration en cours. Les entités du domaine ne dépendent d’aucun attribut EF Core. Les ViewModels recevront des modèles de lecture ou services applicatifs et n’interrogeront jamais directement un `DbContext`.
 
-## 10. Deferred technology decisions
+## 10. Décisions technologiques et distribution
 
-Les choix de packaging et de distribution restent différés. Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002, la politique de pipeline/reconnexion dans l’ADR 0003 et le rendu du tableau de bord dans l’ADR 0004. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002, la politique de pipeline/reconnexion dans l’ADR 0003, le rendu du tableau de bord dans l’ADR 0004, le socle .NET 10 dans l’ADR 0005 et la cible de persistance agrégée dans l’ADR 0006. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+
+La distribution de démonstration publie Desktop et Simulator séparément pour `win-x64`, en mode autonome et sans fichier unique. Cette structure conserve les bibliothèques natives WPF, graphiques, 3D et SQLite dans leurs dossiers de publication. Le package exclut les paramètres de développement, symboles, sources, tests, bases et logs, puis exécute les deux processus depuis le dossier final avant de créer l’archive ZIP.
 
 ## 11. Rendu borné du tableau de bord
 
