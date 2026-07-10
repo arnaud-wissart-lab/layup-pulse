@@ -284,8 +284,15 @@ public sealed class TelemetryPipeline
         private double _forceSum;
         private double _temperatureSum;
         private double _pressureSum;
+        private double _processHealthSum;
+        private double _minimumTemperature = double.PositiveInfinity;
+        private double _maximumTemperature = double.NegativeInfinity;
+        private double _minimumPressure = double.PositiveInfinity;
+        private double _maximumPressure = double.NegativeInfinity;
         private double _minimumForce = double.PositiveInfinity;
         private double _maximumForce = double.NegativeInfinity;
+        private double _minimumProcessHealth = double.PositiveInfinity;
+        private double _endOfBucketCycleProgress;
         private long _firstSequenceNumber;
         private long _lastSequenceNumber;
 
@@ -304,11 +311,20 @@ public sealed class TelemetryPipeline
             _forceSum += sample.CompactionForceNewtons;
             _temperatureSum += sample.HeaterTemperatureCelsius;
             _pressureSum += sample.MaterialPressureBar;
+            _processHealthSum += sample.ProcessHealthPercentage;
+            _minimumTemperature = Math.Min(_minimumTemperature, sample.HeaterTemperatureCelsius);
+            _maximumTemperature = Math.Max(_maximumTemperature, sample.HeaterTemperatureCelsius);
+            _minimumPressure = Math.Min(_minimumPressure, sample.MaterialPressureBar);
+            _maximumPressure = Math.Max(_maximumPressure, sample.MaterialPressureBar);
             _minimumForce = Math.Min(_minimumForce, sample.CompactionForceNewtons);
             _maximumForce = Math.Max(_maximumForce, sample.CompactionForceNewtons);
+            _minimumProcessHealth = Math.Min(_minimumProcessHealth, sample.ProcessHealthPercentage);
+            _endOfBucketCycleProgress = sample.CycleProgressPercentage;
         }
 
         public TelemetryAggregate Create(DateTimeOffset startedAt, DateTimeOffset endedAt) => new(
+            Guid.NewGuid(),
+            Guid.Empty,
             startedAt,
             endedAt,
             SampleCount,
@@ -317,9 +333,16 @@ public sealed class TelemetryPipeline
             _feedRateSum / SampleCount,
             _forceSum / SampleCount,
             _temperatureSum / SampleCount,
+            _minimumTemperature,
+            _maximumTemperature,
             _pressureSum / SampleCount,
+            _minimumPressure,
+            _maximumPressure,
             _minimumForce,
-            _maximumForce);
+            _maximumForce,
+            _processHealthSum / SampleCount,
+            _minimumProcessHealth,
+            _endOfBucketCycleProgress);
 
         public void Reset()
         {
@@ -328,8 +351,15 @@ public sealed class TelemetryPipeline
             _forceSum = 0;
             _temperatureSum = 0;
             _pressureSum = 0;
+            _processHealthSum = 0;
+            _minimumTemperature = double.PositiveInfinity;
+            _maximumTemperature = double.NegativeInfinity;
+            _minimumPressure = double.PositiveInfinity;
+            _maximumPressure = double.NegativeInfinity;
             _minimumForce = double.PositiveInfinity;
             _maximumForce = double.NegativeInfinity;
+            _minimumProcessHealth = double.PositiveInfinity;
+            _endOfBucketCycleProgress = 0;
             _firstSequenceNumber = 0;
             _lastSequenceNumber = 0;
         }

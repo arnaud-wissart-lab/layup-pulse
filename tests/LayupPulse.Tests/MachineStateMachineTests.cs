@@ -130,7 +130,7 @@ public sealed class MachineStateMachineTests
         Assert.True(firstPause.IsAccepted);
         Assert.Equal(MachineState.Paused, firstPause.Snapshot.State);
         Assert.Equal(
-            ProductionRunStatus.Paused,
+            ProductionRunStatus.Running,
             Assert.IsType<ProductionRun>(firstPause.Snapshot.CurrentRun).Status);
         Assert.False(secondPause.IsAccepted);
         Assert.Equal(MachineState.Paused, secondPause.Snapshot.State);
@@ -251,7 +251,7 @@ public sealed class MachineStateMachineTests
         if (initialState is MachineState.Running or MachineState.Paused)
         {
             Assert.Equal(
-                ProductionRunStatus.Failed,
+                ProductionRunStatus.Faulted,
                 Assert.IsType<ProductionRun>(result.Snapshot.CurrentRun).Status);
         }
     }

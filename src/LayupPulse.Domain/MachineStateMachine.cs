@@ -284,9 +284,9 @@ public static class MachineStateMachine
         }
 
         ProductionRun? currentRun = snapshot.CurrentRun;
-        if (currentRun?.Status is ProductionRunStatus.Running or ProductionRunStatus.Paused)
+        if (currentRun?.Status == ProductionRunStatus.Running)
         {
-            currentRun = currentRun.Fail(command.Timestamp, $"Défaut critique : {command.Fault.Value}.");
+            currentRun = currentRun.Fault(command.Timestamp, $"Défaut critique : {command.Fault.Value}.");
         }
 
         return Accept(snapshot, snapshot with
@@ -331,7 +331,7 @@ public static class MachineStateMachine
     private static MachineSnapshot Disconnect(MachineSnapshot snapshot, DateTimeOffset timestamp)
     {
         ProductionRun? currentRun = snapshot.CurrentRun;
-        if (currentRun?.Status is ProductionRunStatus.Running or ProductionRunStatus.Paused)
+        if (currentRun?.Status == ProductionRunStatus.Running)
         {
             currentRun = currentRun.Abort(
                 timestamp,

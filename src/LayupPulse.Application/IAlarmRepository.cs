@@ -14,4 +14,8 @@ public interface IAlarmRepository
     public IAsyncEnumerable<AlarmEvent> GetRecentAsync(
         int maximumCount,
         CancellationToken cancellationToken);
+
+    public IAsyncEnumerable<AlarmEvent> GetByProductionRunIdAsync(
+        Guid productionRunId,
+        CancellationToken cancellationToken);
 }

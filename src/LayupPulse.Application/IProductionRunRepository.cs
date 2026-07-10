@@ -12,6 +12,6 @@ public interface IProductionRunRepository
     public Task<ProductionRun?> GetByIdAsync(Guid productionRunId, CancellationToken cancellationToken);
 
     public IAsyncEnumerable<ProductionRun> GetRecentAsync(
-        int maximumCount,
+        ProductionRunQuery query,
         CancellationToken cancellationToken);
 }

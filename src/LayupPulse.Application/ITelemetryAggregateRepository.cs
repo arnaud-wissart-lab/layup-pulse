@@ -6,4 +6,8 @@ namespace LayupPulse.Application;
 public interface ITelemetryAggregateRepository
 {
     public Task SaveAsync(TelemetryAggregate aggregate, CancellationToken cancellationToken);
+
+    public IAsyncEnumerable<TelemetryAggregate> GetByProductionRunIdAsync(
+        Guid productionRunId,
+        CancellationToken cancellationToken);
 }

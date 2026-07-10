@@ -6,8 +6,7 @@ namespace LayupPulse.Domain;
 public enum ProductionRunStatus
 {
     Running,
-    Paused,
     Completed,
     Aborted,
-    Failed,
+    Faulted,
 }
