@@ -574,6 +574,7 @@ public sealed class MachineSessionService : IMachineSessionService
             MachineSnapshot snapshot = await _gateway
                 .GetSnapshotAsync(connectedSession, cancellationToken)
                 .ConfigureAwait(false);
+            GetPipeline()?.BeginSequenceScope();
             SetTransportSession(connectedSession);
             UpdateState(
                 state => state with

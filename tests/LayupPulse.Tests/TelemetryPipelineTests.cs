@@ -82,6 +82,23 @@ public sealed class TelemetryPipelineTests
         Assert.Equal(3, pipeline.GetCurrentPublication().Metrics.DroppedSamples);
     }
 
+    [Fact]
+    public void NewSequenceScopeAcceptsANumberLowerThanThePreviousSession()
+    {
+        MutableTimeProvider time = new(Timestamp);
+        TelemetryPipeline pipeline = CreatePipeline(time, historyCapacity: 100);
+        pipeline.Accept(CreateSample(100));
+
+        pipeline.BeginSequenceScope();
+        time.Advance(TimeSpan.FromMilliseconds(50));
+        pipeline.Accept(CreateSample(1));
+
+        IReadOnlyList<TelemetrySample> history = pipeline.GetHistorySnapshot();
+        Assert.Equal([100L, 1L], history.Select(static sample => sample.SequenceNumber));
+        Assert.Equal(1, pipeline.GetCurrentPublication().LatestTelemetry?.SequenceNumber);
+        Assert.Equal(0, pipeline.GetCurrentPublication().Metrics.DroppedSamples);
+    }
+
     private static TelemetryPipeline CreatePipeline(MutableTimeProvider time, int historyCapacity) => new(
         time,
         new TelemetryPipelineOptions

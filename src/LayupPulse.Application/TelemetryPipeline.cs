@@ -21,6 +21,7 @@ public sealed class TelemetryPipeline
     private DateTimeOffset? _lastTelemetryReceivedAt;
     private DateTimeOffset? _lastPublicationAt;
     private DateTimeOffset? _aggregateWindowStartedAt;
+    private long? _lastAcceptedSequenceNumber;
     private long _receivedSamples;
     private long _droppedSamples;
     private long _coalescedSamples;
@@ -55,17 +56,20 @@ public sealed class TelemetryPipeline
             _sampleReceiptTimes.Enqueue(receivedAt);
             TrimRateQueue(_sampleReceiptTimes, receivedAt);
 
-            if (_latestTelemetry is not null && sample.SequenceNumber <= _latestTelemetry.SequenceNumber)
+            if (_lastAcceptedSequenceNumber is not null
+                && sample.SequenceNumber <= _lastAcceptedSequenceNumber.Value)
             {
                 _coalescedSamples++;
                 return;
             }
 
-            if (_latestTelemetry is not null && sample.SequenceNumber > _latestTelemetry.SequenceNumber + 1)
+            if (_lastAcceptedSequenceNumber is not null
+                && sample.SequenceNumber > _lastAcceptedSequenceNumber.Value + 1)
             {
-                _droppedSamples += sample.SequenceNumber - _latestTelemetry.SequenceNumber - 1;
+                _droppedSamples += sample.SequenceNumber - _lastAcceptedSequenceNumber.Value - 1;
             }
 
+            _lastAcceptedSequenceNumber = sample.SequenceNumber;
             _latestTelemetry = sample;
             _lastTelemetryReceivedAt = receivedAt;
             AddToHistory(sample);
@@ -123,6 +127,17 @@ public sealed class TelemetryPipeline
         lock (_gate)
         {
             _reconnectCount++;
+        }
+    }
+
+    /// <summary>
+    /// Démarre la portée de séquence d’une nouvelle session de transport sans perdre l’historique borné.
+    /// </summary>
+    public void BeginSequenceScope()
+    {
+        lock (_gate)
+        {
+            _lastAcceptedSequenceNumber = null;
         }
     }
 

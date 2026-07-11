@@ -37,7 +37,7 @@ public sealed class TelemetryStreamHub
             channel = Channel.CreateBounded<SimulationSnapshot>(new BoundedChannelOptions(SubscriberCapacity)
             {
                 SingleReader = true,
-                SingleWriter = true,
+                SingleWriter = false,
                 FullMode = BoundedChannelFullMode.DropOldest,
                 AllowSynchronousContinuations = false,
             });
