@@ -232,7 +232,6 @@ public sealed class MachineSessionService : IMachineSessionService
         {
             IMachineSession? session;
             CancellationTokenSource? connectionCancellation;
-            CancellationTokenSource? streamAttemptCancellation;
             Task? supervisorTask;
             Task? freshnessMonitorTask;
             TelemetryPipeline? pipeline;
@@ -241,7 +240,6 @@ public sealed class MachineSessionService : IMachineSessionService
             {
                 session = _transportSession;
                 connectionCancellation = _connectionCancellation;
-                streamAttemptCancellation = _streamAttemptCancellation;
                 supervisorTask = _supervisorTask;
                 freshnessMonitorTask = _freshnessMonitorTask;
                 pipeline = _pipeline;
@@ -266,7 +264,6 @@ public sealed class MachineSessionService : IMachineSessionService
                 pipeline);
             ClearRecentProductionRunAssociation(pipeline);
             connectionCancellation.Cancel();
-            streamAttemptCancellation?.Cancel();
             await AwaitBackgroundTasksAsync(supervisorTask, freshnessMonitorTask).ConfigureAwait(false);
             pipeline?.EvaluateCommunication(communicationExpected: false, communicationStartedAt: null);
             pipeline?.Complete();
@@ -1236,7 +1233,14 @@ public sealed class MachineSessionService : IMachineSessionService
             cancellation = _streamAttemptCancellation;
         }
 
-        cancellation?.Cancel();
+        try
+        {
+            cancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // La tentative s’est terminée et a libéré son jeton entre la lecture et l’annulation.
+        }
     }
 
     private void ThrowIfDisposed(bool allowDisposing = false)

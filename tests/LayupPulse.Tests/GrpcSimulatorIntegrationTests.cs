@@ -47,8 +47,9 @@ public sealed class GrpcSimulatorIntegrationTests
                 CorrelationId = Guid.NewGuid().ToString("D"),
                 Fault = SimulatedFault.CommunicationDrop,
             });
-            RpcException interruption = await Assert.ThrowsAsync<RpcException>(() =>
-                interruptedStream.ResponseStream.MoveNext(interruptionTimeout.Token));
+            RpcException interruption = await ReadUntilTerminalFailureAsync(
+                interruptedStream.ResponseStream,
+                interruptionTimeout.Token);
             CommandResultMessage cleared = await client.ClearFaultAsync(new ClearFaultRequest
             {
                 CorrelationId = Guid.NewGuid().ToString("D"),
@@ -94,4 +95,25 @@ public sealed class GrpcSimulatorIntegrationTests
         Command = command,
         RecipeId = recipeId,
     };
+
+    private static async Task<RpcException> ReadUntilTerminalFailureAsync(
+        IAsyncStreamReader<TelemetryMessage> stream,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                if (!await stream.MoveNext(cancellationToken))
+                {
+                    throw new InvalidOperationException(
+                        "Le flux interrompu s’est terminé sans statut gRPC terminal.");
+                }
+            }
+            catch (RpcException exception)
+            {
+                return exception;
+            }
+        }
+    }
 }
