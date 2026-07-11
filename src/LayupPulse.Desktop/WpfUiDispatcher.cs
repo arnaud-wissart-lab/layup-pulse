@@ -14,6 +14,11 @@ public sealed class WpfUiDispatcher : IUiDispatcher
     public void Post(Action action)
     {
         ArgumentNullException.ThrowIfNull(action);
+        if (_dispatcher.HasShutdownStarted || _dispatcher.HasShutdownFinished)
+        {
+            return;
+        }
+
         if (_dispatcher.CheckAccess())
         {
             action();

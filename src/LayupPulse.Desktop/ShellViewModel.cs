@@ -8,6 +8,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
 {
     private readonly IMachineSessionService _sessionService;
     private readonly IUiDispatcher _dispatcher;
+    private readonly object _pendingStateLock = new();
     private NavigationItemViewModel? _selectedNavigation;
     private object? _currentPage;
     private string _connectionStatus = string.Empty;
@@ -21,6 +22,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
     private string _currentLocalTime = string.Empty;
     private string _telemetryAge = "Aucune donnée";
     private MachineSessionState _sessionState;
+    private MachineSessionState? _pendingState;
+    private bool _stateDispatchScheduled;
     private int _isDisposed;
 
     public ShellViewModel(
@@ -160,6 +163,10 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         if (Interlocked.Exchange(ref _isDisposed, 1) == 0)
         {
             _sessionService.StateChanged -= OnSessionStateChanged;
+            lock (_pendingStateLock)
+            {
+                _pendingState = null;
+            }
         }
     }
 
@@ -170,7 +177,34 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _dispatcher.Post(() => ApplyState(eventArgs.State));
+        lock (_pendingStateLock)
+        {
+            _pendingState = eventArgs.State;
+            if (_stateDispatchScheduled)
+            {
+                return;
+            }
+
+            _stateDispatchScheduled = true;
+        }
+
+        _dispatcher.Post(ApplyPendingState);
+    }
+
+    private void ApplyPendingState()
+    {
+        MachineSessionState? state;
+        lock (_pendingStateLock)
+        {
+            state = _pendingState;
+            _pendingState = null;
+            _stateDispatchScheduled = false;
+        }
+
+        if (state is not null && Volatile.Read(ref _isDisposed) == 0)
+        {
+            ApplyState(state);
+        }
     }
 
     private void ApplyState(MachineSessionState state)
