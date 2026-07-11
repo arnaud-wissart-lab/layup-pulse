@@ -4,6 +4,15 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+## [0.2.1] — 2026-07-11
+
+### Corrigé
+
+- Centralisation de la version `0.2.1` pour les builds, Diagnostics, le packaging et la CI.
+- Finalisation des runs en défaut après accumulation du premier échantillon terminal, avec traitement explicite des coupures de communication sans télémétrie terminale.
+- Abandon du run local lors du remplacement par un simulateur inactif, sans rattacher sa télémétrie `Ready` à l’ancien cycle.
+- Protection de l’Historique contre l’écrasement de résultats récents par des requêtes de filtre ou de sélection obsolètes.
+
 ## [0.2.0] — 2026-07-11
 
 ### Ajouté
@@ -48,6 +57,7 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.1.0

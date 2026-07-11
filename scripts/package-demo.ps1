@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$')]
-    [string]$Version = "0.2.0",
+    [string]$Version,
     [ValidateRange(1, 120)]
     [int]$StartupTimeoutSeconds = 20,
     [switch]$NoRestore,
@@ -20,6 +20,19 @@ $archivePath = Join-Path $artifactsRoot "LayupPulse-win-x64.zip"
 $desktopProject = Join-Path $repositoryRoot "src/LayupPulse.Desktop/LayupPulse.Desktop.csproj"
 $simulatorProject = Join-Path $repositoryRoot "src/LayupPulse.Simulator/LayupPulse.Simulator.csproj"
 $assetsRoot = Join-Path $PSScriptRoot "package-assets"
+$versionSourcePath = Join-Path $repositoryRoot "Directory.Build.props"
+
+[xml]$versionSource = Get-Content -LiteralPath $versionSourcePath -Raw
+$sourceVersion = [string]$versionSource.Project.PropertyGroup.Version
+if ($sourceVersion -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
+    throw "Version source invalide dans Directory.Build.props : '$sourceVersion'."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($Version) -and $Version -ne $sourceVersion) {
+    throw "La version demandée '$Version' diffère de la version source '$sourceVersion'."
+}
+
+$resolvedVersion = $sourceVersion
 
 function Assert-SafeArtifactPath {
     param([Parameter(Mandatory)][string]$Path)
@@ -52,7 +65,7 @@ function Invoke-DotNetPublish {
         '-p:DebugType=None',
         '-p:ContinuousIntegrationBuild=true',
         '-p:IncludeSourceRevisionInInformationalVersion=false',
-        "-p:Version=$Version",
+        "-p:Version=$resolvedVersion",
         "-p:InformationalVersion=$InformationalVersion",
         "-p:SourceRevisionId=$Revision"
     )
@@ -85,7 +98,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($revision)) {
 else {
     $revision = $revision.Trim()
 }
-$informationalVersion = "$Version+$revision"
+$informationalVersion = "$resolvedVersion+$revision"
 
 if (Test-Path -LiteralPath $packageRoot) {
     Remove-Item -LiteralPath $packageRoot -Recurse -Force

@@ -19,6 +19,8 @@ public sealed class HistoryViewModel : ObservableObject
     private bool _hasRuns;
     private bool _hasSelection;
     private string _statusMessage = "Chargement de l’historique local…";
+    private int _refreshRequestGeneration;
+    private int _detailsRequestGeneration;
 
     public HistoryViewModel(IHistoryQueryService historyQuery)
     {
@@ -32,8 +34,12 @@ public sealed class HistoryViewModel : ObservableObject
             new HistoryStatusFilter("En cours", ProductionRunStatus.Running),
         ];
         _selectedStatusFilter = StatusFilters[0];
-        RefreshCommand = new AsyncRelayCommand(RefreshAsync);
-        LoadDetailsCommand = new AsyncRelayCommand(LoadDetailsAsync);
+        RefreshCommand = new AsyncRelayCommand(
+            RefreshAsync,
+            AsyncRelayCommandOptions.AllowConcurrentExecutions);
+        LoadDetailsCommand = new AsyncRelayCommand(
+            LoadDetailsAsync,
+            AsyncRelayCommandOptions.AllowConcurrentExecutions);
         RefreshCommand.Execute(null);
     }
 
@@ -102,15 +108,24 @@ public sealed class HistoryViewModel : ObservableObject
 
     private async Task RefreshAsync(CancellationToken cancellationToken)
     {
+        int generation = Interlocked.Increment(ref _refreshRequestGeneration);
+        ProductionRunStatus? status = SelectedStatusFilter.Status;
+        Interlocked.Increment(ref _detailsRequestGeneration);
+        LoadDetailsCommand.Cancel();
         IsLoading = true;
         StatusMessage = "Chargement de l’historique local…";
 
         try
         {
             IReadOnlyList<ProductionRunHistoryItem> runs = await _historyQuery.GetRecentRunsAsync(
-                SelectedStatusFilter.Status,
+                status,
                 MaximumRunCount,
                 cancellationToken);
+            if (!IsLatestRefresh(generation))
+            {
+                return;
+            }
+
             Runs.Clear();
             foreach (ProductionRunHistoryItem run in runs)
             {
@@ -129,6 +144,11 @@ public sealed class HistoryViewModel : ObservableObject
         }
         catch (Exception exception)
         {
+            if (!IsLatestRefresh(generation))
+            {
+                return;
+            }
+
             Runs.Clear();
             SelectedRun = null;
             HasRuns = false;
@@ -136,12 +156,16 @@ public sealed class HistoryViewModel : ObservableObject
         }
         finally
         {
-            IsLoading = false;
+            if (IsLatestRefresh(generation))
+            {
+                IsLoading = false;
+            }
         }
     }
 
     private async Task LoadDetailsAsync(CancellationToken cancellationToken)
     {
+        int generation = Interlocked.Increment(ref _detailsRequestGeneration);
         HistoryRunRowViewModel? selectedRun = SelectedRun;
         SelectedRunAlarms.Clear();
         SelectedRunTelemetry.Clear();
@@ -157,7 +181,9 @@ public sealed class HistoryViewModel : ObservableObject
                 MaximumAlarmCount,
                 MaximumAggregateCount,
                 cancellationToken);
-            if (details is null || SelectedRun?.Id != selectedRun.Id)
+            if (!IsLatestDetailsRequest(generation)
+                || details is null
+                || SelectedRun?.Id != selectedRun.Id)
             {
                 return;
             }
@@ -178,7 +204,16 @@ public sealed class HistoryViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            StatusMessage = $"Détails d’historique indisponibles : {exception.Message}";
+            if (IsLatestDetailsRequest(generation))
+            {
+                StatusMessage = $"Détails d’historique indisponibles : {exception.Message}";
+            }
         }
     }
+
+    private bool IsLatestRefresh(int generation) =>
+        generation == Volatile.Read(ref _refreshRequestGeneration);
+
+    private bool IsLatestDetailsRequest(int generation) =>
+        generation == Volatile.Read(ref _detailsRequestGeneration);
 }

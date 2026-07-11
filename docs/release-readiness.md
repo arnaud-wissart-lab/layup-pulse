@@ -1,130 +1,82 @@
 # État de préparation à la publication
 
-## État audité
+## Périmètre audité
 
 - Date de l’audit : 11 juillet 2026, fuseau Europe/Paris.
 - Dépôt public : `arnaud-wissart-lab/layup-pulse`.
-- Branche auditée : `main`.
-- `HEAD` public audité : `e94ad8e09a5e2090efe4f1b05b0d8ec3c75da7f3` (`fix(ci): impose les fins de ligne LF au checkout`).
-- Release auditée : `v0.1.0`, dont le tag pointe sur `608f9bb13745b80f210823d9c4b2a2935084a936` (`docs(release): prépare la version 0.1.0`). Le tag n’a été ni déplacé ni remplacé.
-- Les corrections fonctionnelles, architecturales et documentaires de l’audit initial sont commitées dans l’historique menant à `v0.1.0`. Le commit `e94ad8e…`, postérieur au tag, corrige ensuite le comportement du formatage dans la CI.
-- État local au début du présent audit de publication : arbre de travail propre, aucun diff indexé ou non indexé.
-- Portée relue : règles du dépôt, documentation produit/UI/architecture, ADR, projets et références, code Domain/Application/Contracts/Infrastructure/Simulator/Desktop, tests, configuration, scripts, workflow CI, README, capture publique et diff complet.
+- Branche : `main`.
+- `HEAD` de départ de `main` audité : `772add1956f9aaa05c510220d8bd12e4da4caa64` (`fix(ci): stabilise l’arrêt de session et le test de coupure gRPC`).
+- Révision candidate finale : le commit qui porte ce document ; son SHA doit être celui du futur tag `v0.2.1` après réussite de sa CI.
+- Version : `0.2.1`, définie une seule fois dans `Directory.Build.props`.
+- Les tags `v0.1.0` et `v0.2.0` ne sont ni déplacés ni remplacés. Le nouveau tag `v0.2.1` ne sera créé qu’après réussite de la CI du commit final.
 
-## Incrément d’historique durable v0.2.0
+Le stockage durable reste limité au démonstrateur local : `%LOCALAPPDATA%\LayupPulse\layuppulse.db`, contextes EF Core courts créés par `IDbContextFactory`, migrations SQLite et file d’écriture bornée. Les échantillons bruts à 20 Hz ne sont pas persistés. Une erreur de base est journalisée et exposée comme diagnostic non fatal ; elle n’interrompt ni la télémétrie ni WPF.
 
-La révision candidate `v0.2.0` ajoute EF Core 10.0.9, SQLite, la migration initiale, la persistance bornée des runs/alarmes/agrégats UTC d’une seconde et une page Historique fonctionnelle. Elle ne modifie ni le tag ni l’archive `v0.1.0`. Sa publication exige une CI propre et un nouveau contrôle du package autonome.
+## Cohérence de version
 
-Le stockage utilise `%LOCALAPPDATA%\LayupPulse\layuppulse.db`, des contextes courts créés par `IDbContextFactory` et une file bornée de 2 048 événements. Les échantillons bruts à 20 Hz ne sont pas persistés. Les erreurs SQLite sont journalisées et exposées comme diagnostics non fatals ; elles n’arrêtent ni la télémétrie ni WPF.
+`Directory.Build.props` est la source de vérité de la version `0.2.1`. MSBuild l’applique aux builds Release Desktop et Simulator. `DiagnosticsViewModel` lit la version de l’assembly Desktop. `scripts/package-demo.ps1` lit la même propriété, refuse une valeur explicite divergente et l’utilise pour les métadonnées des deux publications. La CI appelle le script sans recopier de numéro de version.
 
-## Validation locale de l’incrément d’historique
+Un test de régression vérifie la concordance entre la source MSBuild, les assemblies Desktop et Simulator, Diagnostics, le script de packaging, la CI, le changelog et le présent document.
+
+## Validation locale de la passe de durcissement
+
+Cette section décrit exclusivement les commandes exécutées dans l’arbre de travail local issu du `HEAD` ci-dessus. Elle ne constitue ni une validation GitHub Actions de modifications non commitées, ni une validation d’un actif de release déjà publié.
 
 | Commande ou contrôle | Résultat |
 | --- | --- |
-| `dotnet restore LayupPulse.sln` | Réussi ; packages EF Core/SQLite stables restaurés. |
-| `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; seul l’avertissement générique de chargement de l’espace de travail demeure. |
-| `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi : 0 erreur ; avertissement `NU1701` SkiaSharp déjà connu. |
-| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi : 105 tests, 0 échec, 0 ignoré. |
-| `dotnet test LayupPulse.sln -c Release --no-build --filter FullyQualifiedName~HistorySurvivesStoreShutdownAndAContextReopen` | Réussi : smoke test ciblé de migration, drainage, fermeture et réouverture SQLite par une nouvelle factory/contexte. |
-| `.\scripts\run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5 -Build` | Réussi : migration de la base utilisateur, démarrage du simulateur et de Desktop, stabilité pendant cinq secondes et nettoyage des processus. |
-| `dotnet list LayupPulse.sln package --include-transitive --vulnerable` | Réussi : aucun package vulnérable signalé ; `SQLitePCLRaw.bundle_e_sqlite3` est verrouillé en 3.0.3. |
-| `git diff --check` | Réussi, code de sortie 0 ; aucun défaut d’espace ou marqueur de conflit signalé. |
+| Tests ciblés d’orchestration et de concurrence | Réussi dix fois de suite : 9 tests par passage, 0 échec. |
+| `dotnet restore LayupPulse.sln` | Réussi ; avertissement `NU1701` SkiaSharp connu. |
+| `dotnet format LayupPulse.sln` | Réussi ; avertissement générique de chargement de l’espace de travail. |
+| `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; aucune modification de format restante. |
+| `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi : 0 erreur ; avertissement `NU1701` SkiaSharp connu. |
+| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi : 116 tests, 0 échec, 0 ignoré. |
+| `.\scripts\run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5 -Build` | Réussi : build, démarrage des deux processus, stabilité pendant cinq secondes et nettoyage. |
+| `.\scripts\package-demo.ps1 -Version 0.2.1` | Réussi : publications autonomes, smoke test intégré et archive de 128 275 073 octets. |
+| `.\artifacts\LayupPulse-win-x64\Run-LayupPulse.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi : second smoke test direct du package reconstruit. |
+| Contrôle des versions des assemblies packagées | Desktop et Simulator : assembly `0.2.1.0`, fichier `0.2.1.0`, produit candidat `0.2.1+772add1956f9`. Diagnostics affiche `0.2.1`. |
+| SHA-256 de l’archive candidate locale | `f7d8904ce68197d413a0e2277c0ad12be903735d85ed903f3d0355c3aae89670`. L’archive de release sera reconstruite depuis le commit final vert. |
+| `git diff --check` | Réussi : aucun défaut d’espace ni marqueur de conflit. |
 
-Ces commandes sont exécutées depuis la racine du dépôt sur Windows. Elles établissent l’état local du correctif ; elles ne constituent ni un résultat GitHub Actions ni une validation de l’archive attachée à la release.
+## Validation GitHub Actions actuelle
 
-## Validations locales antérieures consignées pour `v0.1.0`
+La dernière exécution distante terminée pour le `HEAD` actuel est [GitHub Actions 29140837545](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/29140837545). Elle est réussie pour le commit `772add1956f9aaa05c510220d8bd12e4da4caa64` et couvre restauration, formatage, build Release, tests, packaging, smoke test et téléversement de l’artefact.
 
-| Commande ou contrôle | Résultat consigné lors de la préparation de `v0.1.0` |
-| --- | --- |
-| `.\scripts\run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi : Simulator et Desktop sont restés actifs pendant cinq secondes, puis le script a nettoyé les deux processus. |
-| `.\scripts\package-demo.ps1` | Réussi : publications autonomes `win-x64`, smoke test intégré réussi et archive ZIP de 119,3 Mio créée. |
-| `.\artifacts\LayupPulse-win-x64\Run-LayupPulse.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi : second smoke test direct du package autonome. |
-| Parcours Windows UI Automation à 1280 × 800 | Réussi : connexion, disponibilité des commandes, chargement de recette, démarrage, pause, reprise, défaut haute température, acquittement, levée du défaut, reset et fermeture normale. |
-| Capture `PrintWindow` à 1280 × 800 | Inspectée : aucune perte horizontale du shell ou des commandes ; le contenu inférieur utilise le défilement vertical prévu. Le focus clavier du bouton initial est visible. |
-| Liens Markdown locaux | Réussi : toutes les cibles locales référencées existent. Les liens externes principaux répondent ; les services de badges SVG ne sont pas interprétés comme pages HTML par l’outil de contrôle. |
-| Capture publique `docs/screenshots/overview-running.png` | Inspectée et cohérente avec l’interface actuelle ; aucun élément obsolète identifié. |
+Cette réussite ne couvre pas les modifications locales non commitées de la présente passe. Aucune réussite GitHub Actions ne doit leur être attribuée tant qu’un éventuel commit final n’a pas sa propre exécution distante terminée avec succès.
 
-Ces contrôles historiques documentent la préparation locale de `v0.1.0`. Ils ne doivent pas être attribués à GitHub Actions.
+## Validation des actifs de release publiés
 
-## Validation GitHub Actions
+### `v0.2.0`
 
-| Révision | Résultat public |
-| --- | --- |
-| `608f9bb13745b80f210823d9c4b2a2935084a936` (`v0.1.0`) | [Exécution 29138099775](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/29138099775) en échec à l’étape `Verify formatting`. Les étapes build, tests, packaging et téléversement de l’artefact ont été ignorées. |
-| `e94ad8e09a5e2090efe4f1b05b0d8ec3c75da7f3` (`main`) | [Exécution 29138200687](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/29138200687) réussie : restauration, vérification du formatage, build Release, 94 tests, publication et smoke test du package, puis téléversement de l’artefact Actions. |
+- Le tag existant pointe sur `772add1956f9aaa05c510220d8bd12e4da4caa64`.
+- L’actif publié `LayupPulse-win-x64.zip` mesure 128 274 576 octets.
+- Son SHA-256 publié est `fa30018629557b128a995338ca55782b05ef7185fa8e292630c86a85e947d4dc`.
+- Cet actif est antérieur à la passe de durcissement locale. Sa validation ne prouve donc pas le comportement des changements locaux et il ne doit pas être présenté comme leur package reconstruit.
 
-Le vert de `main` couvre `e94ad8e…`. Il ne valide pas par anticipation le présent correctif documentaire : le commit qui le portera devra disposer de sa propre exécution réussie avant toute publication corrective.
+### `v0.1.0`
 
-## Validation du package publié
+- Le tag et l’actif restent inchangés.
+- L’actif publié `LayupPulse-win-x64.zip` mesure 125 137 069 octets.
+- Son SHA-256 publié et revérifié est `877f1b67ec6dd7b3e47ca4ffd9a8732e8b763c8b02902e71a115f703c3e39361`.
+- Le `README.txt` de cette archive publiée inchangée a été inspecté pendant l’audit. Il ne décrit pas de limitation relative à un historique durable. Aucune affirmation inverse ne doit lui être attribuée.
+- L’absence d’historique durable dans `v0.1.0` est établie par le contenu logiciel et l’historique du dépôt, pas par une mention inexistante dans le `README.txt` de l’archive.
 
-- La release GitHub [`v0.1.0`](https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.1.0) publie `LayupPulse-win-x64.zip`, de 125 137 069 octets, avec le SHA-256 `877f1b67ec6dd7b3e47ca4ffd9a8732e8b763c8b02902e71a115f703c3e39361`.
-- Pendant le présent audit, l’archive attachée à la release a été téléchargée de nouveau. Son empreinte correspond à celle annoncée et son lanceur autonome a réussi un smoke test de cinq secondes.
-- Le `README.txt` de l’archive publiée décrit correctement la limite de `v0.1.0`. La source `scripts/package-assets/README.txt` décrit désormais l’historique local pour un futur package ; l’archive publiée et le tag `v0.1.0` ne sont ni remplacés ni modifiés.
-- Cette vérification de l’archive publiée est distincte du workflow du commit tagué, qui avait ignoré son étape de packaging, et de l’artefact Actions produit plus tard depuis `e94ad8e…`.
+## Scénarios de durcissement couverts
 
-## Scénarios fonctionnels couverts
+- Pour un défaut de procédé continuant à produire de la télémétrie, le run local attend le premier échantillon terminal avant sa finalisation. Cet échantillon contribue aux moyennes, au minimum de santé, à la progression et au dernier agrégat durable.
+- `CommunicationDrop` est traité explicitement, car aucun échantillon terminal n’est garanti.
+- Lorsqu’un nouveau contexte de simulateur est attaché en état `Ready` ou `Disconnected`, le run local précédent est finalisé en `Aborted`, son association au pipeline est retirée et la télémétrie `Ready` suivante n’est pas rattachée à l’ancien run.
+- Un snapshot de remplacement encore `Running` ou `Paused` conserve le run local existant.
+- Les filtres et sélections de l’Historique utilisent des générations de requêtes. Une réponse obsolète ne peut ni remplacer la liste récente, ni effacer la sélection récente, ni terminer prématurément l’indicateur de chargement.
 
-- Les transitions métier, commandes invalides, validation de recette, arrêt, défauts, reset et cycle terminé sont couvertes par les tests du domaine et du simulateur.
-- La pause ne fait pas progresser le cycle ; ce comportement est testé avec 100 échantillons en pause.
-- `Stop` termine le run avec le statut `Aborted` et remet la machine simulée à `Ready`.
-- L’acquittement d’une alarme ne lève pas sa condition ; le parcours UI confirme que l’action devient indisponible après acquittement, puis que la condition doit être levée séparément.
-- L’hystérésis, les temporisations, la récupération de communication et l’unicité des alarmes actives sont couvertes par les tests du moteur d’alarmes.
-- La reconnexion est sérialisée et son délai est annulable ; les tests vérifient l’absence de tentatives concurrentes et l’arrêt lors d’une déconnexion explicite.
-- Les canaux serveur, historiques télémétriques, agrégats, alarmes et diagnostics sont bornés. Les graphiques réutilisent l’historique borné et limitent leur rendu à 600 points par signal.
-- La géométrie 3D statique est créée une fois ; la tête réutilise une transformation et les chemins ne sont redécoupés qu’au changement de palier de progression.
-- La fermeture normale du client a été exercée après un cycle et un défaut. Desktop ne possède pas le processus Simulator ; les scripts de démonstration possèdent et nettoient les deux processus qu’ils lancent.
-- Les tests SQLite appliquent la migration sur un fichier réel, écrivent un run sans doublon, son alarme et son agrégat, ferment le writer, puis relisent les données avec une nouvelle factory et un nouveau contexte.
-- Le filtre d’état final et l’ordre du plus récent au plus ancien sont vérifiés sur le comportement SQLite réel.
+## Architecture et risques résiduels
 
-## Défauts corrigés
-
-1. **Blocage de la télémétrie après remplacement de session.** Le pipeline comparait les numéros de séquence d’une nouvelle session à ceux de l’ancienne. Une séquence repartant à 1 pouvait être rejetée indéfiniment. Une portée de séquence explicite est maintenant ouverte lors de la création d’une nouvelle session, sans perdre l’historique borné.
-2. **Retard Dispatcher potentiellement non borné.** Chaque publication applicative créait un travail WPF, même si la valeur précédente n’avait pas encore été traitée. Le shell ne conserve désormais qu’un état en attente et remplace celui-ci par le plus récent. Un test vérifie que 100 publications ne créent qu’un travail UI en attente.
-3. **Promesse de canal incorrecte.** Le canal abonné déclarait `SingleWriter = true`, alors que la publication et la terminaison peuvent provenir de threads distincts. La configuration autorise maintenant plusieurs producteurs synchronisés par le canal.
-4. **Frontières de présentation trop larges.** `DiagnosticsViewModel` dépendait de `GrpcMachineGatewayOptions` et Desktop référençait directement Contracts sans l’utiliser. Le ViewModel reçoit maintenant une `Uri` neutre et la référence de projet superflue a été supprimée.
-5. **Abstractions de persistance spéculatives.** Des ports, modèles de requête et un service d’historique n’avaient ni implémentation, ni composition, ni consommateur. Ils ont été retirés afin que les abstractions correspondent à des frontières réelles. README, architecture et ADR précisent désormais que toute cette intégration reste absente.
-6. **Avertissement d’analyse du domaine.** La validation négative de `alarmCount` utilise la garde standard .NET, supprimant l’avertissement `CA1512`.
-7. **Agrégats sans run.** Le pipeline associait les agrégats à `Guid.Empty`. Le suivi du cycle utilise désormais l’identifiant de `Start` et ferme une seule fois chaque run.
-8. **Fenêtres non alignées.** Les fenêtres dépendaient de l’heure de réception. Les buckets sont maintenant alignés sur les secondes UTC de la télémétrie.
-9. **Alarme temporisée après défaut.** L’association du run est conservée pendant l’état `Faulted`, puis libérée au reset, au prochain cycle ou à la déconnexion.
-
-## Audit d’architecture
-
-- Domain ne référence aucun autre projet et ne dépend ni de WPF, EF Core, gRPC, Contracts ou Infrastructure.
-- Application ne référence que Domain et ne dépend pas de WPF.
-- Les ViewModels ne référencent ni `DbContext`, ni types gRPC générés, ni entités de base de données.
-- Les types gRPC restent dans Contracts, Infrastructure et Simulator.
-- Desktop est la racine de composition WPF ; les appels à `GetRequiredService` y restent limités à la composition. Simulator applique la même règle dans sa racine de composition.
-- Aucune référence circulaire n’existe ; le test d’architecture vérifie la liste exacte des références de projets.
-- Aucun `.Result`, `.Wait()`, `Task.Run` inutile, boucle infinie non annulable ou tâche longue sans propriétaire n’a été trouvé dans le code applicatif.
-
-## Hygiène du dépôt
-
-- Aucun secret, chemin absolu propre à une machine, base locale, log, symbole, binaire ou sortie de publication n’est versionné.
-- Les seuls `NotSupportedException` trouvés appartiennent à des doubles de test pour des opérations volontairement hors scénario ; aucun `NotImplementedException` n’existe.
-- Aucun `TODO`, `FIXME`, bypass de débogage ou code commenté obsolète n’a été trouvé.
-- L’ancien `PlaceholderView` et son ViewModel ont été supprimés ; Historique possède sa vue et son ViewModel typés.
-- `appsettings.Development.json` du simulateur est intentionnel, portable et limité à des paramètres fictifs de bouclage local.
-
-## Limites connues
-
-- La page Historique n’a pas encore fait l’objet d’une nouvelle capture publique ni d’un parcours UI Automation complet pour `v0.2.0` ; le comportement de lecture et de réouverture est couvert par les tests d’intégration.
-- Le build conserve l’avertissement `NU1701` lié à `SkiaSharp.Views.WPF 3.119.0`, dépendance transitive de la bibliothèque de graphiques. Les smoke tests réduisent le risque de démarrage, mais ne prouvent pas une compatibilité complète.
-- Aucun flux de traces de liaison WPF issu d’une session Visual Studio Debug n’a été capturé. Le parcours UI et les valeurs visibles n’ont révélé aucun symptôme de liaison défaillante, sans constituer une preuve d’absence de tout avertissement.
-- Le panneau de repli 3D a été relu, mais une panne d’initialisation 3D n’a pas été injectée manuellement.
-- La vérification visuelle a été réalisée à 1280 × 800 au facteur d’échelle courant, pas à l’ensemble de la plage 100–200 % annoncée par la spécification UI.
+- Domain ne dépend d’aucune technologie d’infrastructure ; Application ne dépend que de Domain.
+- Les ViewModels n’accèdent pas au `DbContext` et les requêtes d’historique restent asynchrones et bornées.
+- Le build conserve l’avertissement `NU1701` connu lié à `SkiaSharp.Views.WPF 3.119.0`, dépendance transitive de la bibliothèque de graphiques.
 - Le package Windows x64 n’est pas signé et peut déclencher SmartScreen.
-- Le workflow GitHub Actions historique est vert sur `e94ad8e…` ; la révision candidate `v0.2.0` doit obtenir son propre résultat vert avant publication.
-- L’archive `v0.1.0` publiée reste antérieure à cet incrément et ne contient pas l’historique durable ; elle demeure inchangée.
+- SQLite demeure un stockage local de démonstration, sans rétention, export, authentification, réplication ni garantie de traçabilité industrielle.
+- LayupPulse ne doit jamais être présenté comme adapté au pilotage d’un équipement industriel réel ou comme une fonction de sûreté.
 
-## Risques résiduels
+## Conclusion
 
-- Une incompatibilité future de SkiaSharp avec une mise à jour du runtime ou du poste graphique peut affecter uniquement les tendances. Le contrôle prévoit un repli, mais la dépendance doit rester surveillée.
-- La reconnexion à une session réellement recréée après redémarrage complet du processus est couverte au niveau des règles et doubles de transport, pas par un scénario manuel de redémarrage du processus pendant le parcours UI.
-- SQLite reste un stockage local de démonstration sans politique de rétention, export, authentification, réplication ni garantie de traçabilité industrielle.
-
-## Recommandation finale
-
-**Révision candidate `v0.2.0` validée localement ; publication soumise à sa CI et au contrôle du package.**
-
-La révision candidate compile, passe les tests complets et le smoke test de réouverture SQLite. Elle ne doit être publiée sous `v0.2.0` qu’après réussite du workflow Windows et du packaging autonome correspondant. Cette capacité ne rend pas LayupPulse compatible avec du matériel réel et ne constitue pas une fonction de sûreté ou un système MES. Le tag et l’archive `v0.1.0` restent inchangés.
+La passe de durcissement `0.2.1` est validée localement. Le `HEAD` distant de départ possède une CI verte, mais cette preuve est volontairement séparée des modifications locales et des actifs de release déjà publiés. Le commit final doit obtenir sa propre CI verte, puis son package doit être reconstruit et smoke-testé avant la création du tag.

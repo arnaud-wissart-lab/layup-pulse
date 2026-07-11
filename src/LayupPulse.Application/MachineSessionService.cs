@@ -405,13 +405,15 @@ public sealed class MachineSessionService : IMachineSessionService
                     ? $"Défaut simulé {fault} {action}."
                     : result.Transition.Rejection?.Message ?? $"Modification du défaut simulé {fault} rejetée.";
 
-                if (result.IsAccepted && result.Transition.Snapshot.State == MachineState.Faulted)
+                if (result.IsAccepted
+                    && active
+                    && fault == FaultType.CommunicationTimeout)
                 {
                     FinalizeProductionRun(
                         ProductionRunStatus.Faulted,
                         _timeProvider.GetUtcNow(),
                         MachineState.Faulted,
-                        $"Défaut critique simulé : {fault}.",
+                        "Coupure de communication simulée.",
                         GetPipeline());
                 }
 
@@ -638,6 +640,7 @@ public sealed class MachineSessionService : IMachineSessionService
         IMachineSession connectedSession = attachment.Session;
         try
         {
+            ReconcileProductionRunAfterNewAttachment(attachment.Snapshot);
             MachineSnapshot snapshot = await EnsureMachineLifecycleConnectedAsync(
                 connectedSession,
                 attachment.Snapshot,
@@ -658,6 +661,23 @@ public sealed class MachineSessionService : IMachineSessionService
             await TryAbandonSessionAsync(connectedSession).ConfigureAwait(false);
             throw;
         }
+    }
+
+    private void ReconcileProductionRunAfterNewAttachment(MachineSnapshot attachmentSnapshot)
+    {
+        if (attachmentSnapshot.State is not (MachineState.Ready or MachineState.Disconnected))
+        {
+            return;
+        }
+
+        TelemetryPipeline? pipeline = GetPipeline();
+        FinalizeProductionRun(
+            ProductionRunStatus.Aborted,
+            _timeProvider.GetUtcNow(),
+            attachmentSnapshot.State,
+            "Contexte du simulateur remplacé pendant le cycle.",
+            pipeline);
+        ClearRecentProductionRunAssociation(pipeline);
     }
 
     private async Task<MachineSnapshot> EnsureMachineLifecycleConnectedAsync(
