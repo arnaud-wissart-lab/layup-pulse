@@ -17,7 +17,7 @@ public sealed class ProjectDependencyTests
             ["LayupPulse.Simulator"] =
                 ["LayupPulse.Application", "LayupPulse.Contracts", "LayupPulse.Domain"],
             ["LayupPulse.Desktop"] =
-                ["LayupPulse.Application", "LayupPulse.Contracts", "LayupPulse.Domain", "LayupPulse.Infrastructure"],
+                ["LayupPulse.Application", "LayupPulse.Domain", "LayupPulse.Infrastructure"],
             ["LayupPulse.Tests"] =
                 [
                     "LayupPulse.Application",

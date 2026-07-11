@@ -3,7 +3,6 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LayupPulse.Application;
 using LayupPulse.Domain;
-using LayupPulse.Infrastructure;
 
 namespace LayupPulse.Desktop;
 
@@ -30,14 +29,14 @@ public sealed class DiagnosticsViewModel : ObservableObject
     private string _simulationControlTone = "Neutral";
 
     public DiagnosticsViewModel(
-        GrpcMachineGatewayOptions gatewayOptions,
+        Uri machineEndpoint,
         TimeProvider timeProvider,
         IMachineSessionService sessionService,
         DemoModeOptions demoModeOptions)
     {
-        ArgumentNullException.ThrowIfNull(gatewayOptions);
+        ArgumentNullException.ThrowIfNull(machineEndpoint);
         _timeProvider = timeProvider;
-        Endpoint = gatewayOptions.GetValidatedEndpoint().ToString();
+        Endpoint = machineEndpoint.ToString();
         Version? version = typeof(App).Assembly.GetName().Version;
         ApplicationVersion = version is null ? "Indisponible" : version.ToString(3);
         IsDemoMode = demoModeOptions.Enabled;

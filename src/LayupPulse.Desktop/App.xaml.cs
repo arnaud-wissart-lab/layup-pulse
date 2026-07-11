@@ -61,7 +61,7 @@ public partial class App : System.Windows.Application
 
         GrpcMachineGatewayOptions gatewayOptions = new();
         builder.Configuration.GetSection("Machine").Bind(gatewayOptions);
-        gatewayOptions.GetValidatedEndpoint();
+        Uri machineEndpoint = gatewayOptions.GetValidatedEndpoint();
 
         MachineSessionOptions sessionOptions = new();
         builder.Configuration.GetSection("Session").Bind(sessionOptions);
@@ -70,6 +70,7 @@ public partial class App : System.Windows.Application
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(gatewayOptions);
+        builder.Services.AddSingleton(machineEndpoint);
         builder.Services.AddSingleton(sessionOptions);
         builder.Services.AddSingleton(demoModeOptions);
         builder.Services.AddSingleton<GrpcMachineGateway>();

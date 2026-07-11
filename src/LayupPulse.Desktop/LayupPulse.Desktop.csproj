@@ -19,7 +19,6 @@
     <ProjectReference Include="..\LayupPulse.Domain\LayupPulse.Domain.csproj" />
     <ProjectReference Include="..\LayupPulse.Application\LayupPulse.Application.csproj" />
     <ProjectReference Include="..\LayupPulse.Infrastructure\LayupPulse.Infrastructure.csproj" />
-    <ProjectReference Include="..\LayupPulse.Contracts\LayupPulse.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">
