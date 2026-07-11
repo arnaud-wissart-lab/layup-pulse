@@ -31,7 +31,7 @@ Avant une présentation, vérifier que le port `5057` est libre, que l’afficha
 
 La révision actuelle ne contient pas encore l’adaptateur SQLite concret, les migrations, l’enregistrement des runs ni la page Historique fonctionnelle. Le point 10 du scénario produit reste donc un objectif vérifiable à la fin de cette intégration, pas une capacité à prétendre lors d’une démonstration actuelle.
 
-Pour une démonstration honnête aujourd’hui, ouvrir **Historique**, montrer son état explicite, puis expliquer brièvement que les frontières applicatives et les agrégats d’une seconde sont prêts, tandis que l’adaptateur durable demeure dans la feuille de route.
+Pour une démonstration honnête aujourd’hui, ouvrir **Historique**, montrer son état explicite, puis expliquer brièvement que les agrégats d’une seconde restent uniquement en mémoire. Les contrats applicatifs de persistance, l’adaptateur durable et leur intégration demeurent dans la feuille de route.
 
 ## Coupure de communication
 

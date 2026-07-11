@@ -21,6 +21,12 @@ SmartScreen is shown for this unsigned portfolio build, review the publisher
 information and run it only if you obtained the archive from the expected
 LayupPulse GitHub repository.
 
+Known limitation
+----------------
+
+Durable History is not implemented in v0.1.0. The History page is a
+placeholder, and production runs do not survive an application restart.
+
 Safety disclaimer
 -----------------
 

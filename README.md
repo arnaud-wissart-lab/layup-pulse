@@ -2,7 +2,7 @@
 
 LayupPulse is an independent WPF industrial software demonstrator for supervising a simulated automated composite layup cell.
 
-It showcases real-time gRPC communication, deterministic machine-state management, asynchronous telemetry processing, alarm lifecycle management, SQLite production history, real-time charts, and 3D visualization.
+It showcases real-time gRPC communication, deterministic machine-state management, asynchronous telemetry processing, alarm lifecycle management, bounded real-time charts, and 3D visualization.
 
 [![CI](https://github.com/arnaud-wissart-lab/layup-pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/arnaud-wissart-lab/layup-pulse/actions/workflows/ci.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)
@@ -258,7 +258,7 @@ The package is self-contained, preserves native dependencies, does not use singl
 | `src/LayupPulse.Domain` | Technology-independent state, recipe, alarm, telemetry, and run rules |
 | `src/LayupPulse.Application` | Use cases, ports, session supervision, and bounded telemetry pipeline |
 | `src/LayupPulse.Contracts` | Versioned protobuf and generated gRPC types |
-| `src/LayupPulse.Infrastructure` | Concrete gRPC adapter and persistence integration boundary |
+| `src/LayupPulse.Infrastructure` | Concrete gRPC adapter and boundary reserved for future persistence integration |
 | `src/LayupPulse.Simulator` | Separate deterministic simulator and gRPC server |
 | `src/LayupPulse.Desktop` | WPF views, ViewModels, controls, and composition root |
 | `tests/LayupPulse.Tests` | Unit, architecture, and integration tests |
@@ -278,7 +278,7 @@ Material decisions are recorded under [docs/decisions](docs/decisions/README.md)
 - Charts currently restore a transitive WPF compatibility asset that NuGet reports as targeting .NET Framework; runtime smoke testing mitigates but does not remove this dependency risk.
 - The 3D scene is deliberately simplified and does not import CAD data or represent real equipment geometry.
 - Fault injection is deterministic demonstration behavior, not a model of industrial safety or failure physics.
-- The GitHub Actions workflow requires its first remote run to confirm hosted-runner behavior.
+- GitHub Actions is green on the current public `main` commit; each future release candidate still requires its own successful run.
 
 ## Roadmap
 
