@@ -53,21 +53,22 @@ flowchart LR
 
 ## 4. Transport gRPC et passerelle machine
 
-Le fichier `machine_simulator.proto` définit les opérations `GetSnapshot`, `StreamTelemetry`, `ExecuteCommand`, `InjectFault` et `ClearFault`. Les messages restent orientés transport : ils portent des identifiants, des enums et des valeurs scalaires versionnés, jamais les objets du domaine. Les mappings manuels résident dans Simulator, seule couche serveur qui dépend simultanément du domaine et des contrats générés.
+Le fichier `machine_simulator.proto` définit les opérations `GetSnapshot`, `StreamTelemetry`, `ExecuteCommand`, `InjectFault` et `ClearFault`. Les messages restent orientés transport : ils portent des identifiants, des enums et des valeurs scalaires versionnés, jamais les objets du domaine. Les mappings manuels résident dans Simulator, seule couche serveur qui dépend simultanément du domaine et des contrats générés. `GetSnapshot` sert aussi de vérification lors de l’attachement d’un transport local ; cet attachement n’est pas une transition de la machine d’états.
 
 `StreamTelemetry` est un flux serveur. Un service hébergé produit un seul tick partagé à la fréquence configurée puis distribue les échantillons dans des canaux bornés propres aux abonnés. Le nombre de clients ne modifie donc ni la cadence ni la progression. `Disconnect` termine proprement les flux actifs. `CommunicationDrop` les termine avec le statut gRPC `Unavailable` sans arrêter le serveur, afin que `ClearFault` reste joignable et qu’un nouveau flux puisse être créé après rétablissement.
 
 Le point d’écoute de développement par défaut est `http://127.0.0.1:5057`, en HTTP/2 clair limité à l’interface de bouclage. Cette configuration est destinée uniquement au développement local du démonstrateur fictif ; elle ne constitue pas un modèle de déploiement industriel sécurisé.
 
-Le port applicatif `IMachineGateway` représente la session côté bureau sans exposer les types gRPC. `GrpcMachineGateway`, dans Infrastructure, crée un canal par session, traduit les messages protobuf en objets du domaine, applique un délai aux appels unitaires et libère le canal lors de la déconnexion ou de la destruction de l’hôte. Les défauts injectables sont isolés derrière `IDemoFaultGateway` afin de ne pas les confondre avec une capacité machine générale.
+Le port applicatif `IMachineGateway` représente la session côté bureau sans exposer les types gRPC. `GrpcMachineGateway`, dans Infrastructure, crée un canal par session, vérifie l’attachement par `GetSnapshot`, traduit les messages protobuf en objets du domaine, applique un délai aux appels unitaires et libère le canal lors de la déconnexion ou de la destruction de l’hôte. L’attachement retourne la session locale et l’instantané observé sans envoyer `Connect`. `MachineSessionService` n’émet `ConnectRequested` que si cet instantané est `Disconnected`; il accepte directement un simulateur déjà `Ready`, `Running`, `Paused`, `Faulted` ou `Completed`. Les défauts injectables sont isolés derrière `IDemoFaultGateway` afin de ne pas les confondre avec une capacité machine générale.
 
 Sa forme est :
 
 ```csharp
 public interface IMachineGateway : IAsyncDisposable
 {
-    Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken);
+    Task<MachineTransportAttachment> AttachAsync(CancellationToken cancellationToken);
     Task DisconnectAsync(IMachineSession session, CancellationToken cancellationToken);
+    ValueTask AbandonAsync(IMachineSession session);
     Task<CommandResult> ExecuteCommandAsync(
         IMachineSession session,
         MachineCommand command,
@@ -165,7 +166,7 @@ L’acquittement ne modifie pas la condition physique simulée. Lors de la levé
 
 La télémétrie devient périmée après 1 s. Après 2 s sans valeur fraîche, `COMM_TIMEOUT` est levée, la tentative de flux courante est annulée et l’état visible devient `Reconnecting`. Le superviseur réutilise d’abord la session lorsque les appels unitaires restent joignables, ce qui permet de lever `CommunicationDrop`; sinon il abandonne uniquement la session locale et établit une nouvelle connexion.
 
-Le backoff vaut 250 ms, 500 ms, 1 s puis 2 s au maximum. Ces valeurs sont configurables, bornées à une minute et remises à zéro après réception d’un échantillon. Une seule boucle est créée par connexion explicite, donc aucune tentative ne peut se chevaucher.
+Le backoff vaut 250 ms, 500 ms, 1 s puis 2 s au maximum. Ces valeurs sont configurables, bornées à une minute et remises à zéro après réception d’un échantillon. Une seule boucle est créée par connexion explicite, donc aucune tentative ne peut se chevaucher. Lorsqu’un canal local doit être remplacé, la reconnexion réattache le transport et reprend l’instantané courant ; elle ne réémet la commande métier `ConnectRequested` que si le simulateur est réellement `Disconnected`.
 
 ```mermaid
 stateDiagram-v2
@@ -196,10 +197,13 @@ sequenceDiagram
     Session-->>UI: état Reconnecting
     loop backoff exponentiel borné
         Session->>Gateway: vérifier la session ou reconnecter
-        Gateway->>Sim: GetSnapshot / Connect
+        Gateway->>Sim: Attach / GetSnapshot
         alt flux indisponible
             Sim--xGateway: Unavailable
         else communication rétablie
+            opt état machine Disconnected
+                Gateway->>Sim: ConnectRequested
+            end
             Sim-->>Gateway: télémétrie fraîche
             Gateway-->>Session: échantillon
             Session-->>UI: état Connected
@@ -213,7 +217,7 @@ Les futurs types EF Core et le `DbContext` SQLite devront rester dans Infrastruc
 
 ## 10. Décisions technologiques et distribution
 
-Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002, la politique de pipeline/reconnexion dans l’ADR 0003, le rendu du tableau de bord dans l’ADR 0004, le socle .NET 10 dans l’ADR 0005 et la cible de persistance agrégée dans l’ADR 0006. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
+Le transport utilise `Grpc.AspNetCore`, `Grpc.Net.Client`, `Grpc.Tools` et `Google.Protobuf`; la justification du choix est consignée dans l’ADR 0001. L’hébergement de la session Desktop est consigné dans l’ADR 0002, la politique de pipeline/reconnexion dans l’ADR 0003, le rendu du tableau de bord dans l’ADR 0004, le socle .NET 10 dans l’ADR 0005, la cible de persistance agrégée dans l’ADR 0006 et la séparation entre attachement transport et cycle de vie machine dans l’ADR 0007. Seuls des packages stables sont admis et chaque nouveau choix doit rester proportionné au besoin concret.
 
 La distribution de démonstration publie Desktop et Simulator séparément pour `win-x64`, en mode autonome et sans fichier unique. Cette structure conserve les bibliothèques natives WPF, graphiques, 3D et SQLite dans leurs dossiers de publication. Le package exclut les paramètres de développement, symboles, sources, tests, bases et logs, puis exécute les deux processus depuis le dossier final avant de créer l’archive ZIP.
 

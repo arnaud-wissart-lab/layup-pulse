@@ -52,6 +52,31 @@ public sealed class MachineStateMachineTests
         Assert.Equal(MachineState.Disconnected, result.Snapshot.State);
     }
 
+    [Theory]
+    [InlineData(MachineState.Connecting)]
+    [InlineData(MachineState.Ready)]
+    [InlineData(MachineState.Running)]
+    [InlineData(MachineState.Paused)]
+    [InlineData(MachineState.Faulted)]
+    [InlineData(MachineState.Completed)]
+    public void ConnectionRequestIsRejectedOutsideDisconnected(MachineState initialState)
+    {
+        // Préparation
+        MachineSnapshot snapshot = CreateSnapshot(initialState);
+
+        // Action
+        StateTransitionResult result = MachineStateMachine.Transition(
+            snapshot,
+            CreateCommand(MachineCommandType.ConnectRequested, 9));
+
+        // Vérification
+        Assert.False(result.IsAccepted);
+        Assert.Equal(snapshot, result.Snapshot);
+        Assert.Equal(
+            StateTransitionRejectionCode.InvalidState,
+            Assert.IsType<StateTransitionRejection>(result.Rejection).Code);
+    }
+
     [Fact]
     public void StartWithoutLoadedRecipeIsRejected()
     {

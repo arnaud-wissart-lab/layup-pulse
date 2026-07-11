@@ -135,6 +135,7 @@ public static class GrpcContractMapper
 
     private static TransportCommandType ToTransport(this MachineCommandType commandType) => commandType switch
     {
+        MachineCommandType.ConnectRequested => TransportCommandType.Connect,
         MachineCommandType.LoadRecipe => TransportCommandType.LoadRecipe,
         MachineCommandType.Start => TransportCommandType.Start,
         MachineCommandType.Pause => TransportCommandType.Pause,

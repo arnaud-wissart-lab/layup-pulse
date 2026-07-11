@@ -11,7 +11,7 @@ public sealed class MachineSessionServiceTests
     private static readonly DateTimeOffset Timestamp = new(2026, 7, 10, 8, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task ConnectAndDisconnectOwnTheGatewaySessionLifecycle()
+    public async Task ConnectAndDisconnectOwnTheGatewayAttachmentLifecycle()
     {
         TestMachineGateway gateway = new();
         await using MachineSessionService service = CreateService(gateway);
@@ -21,9 +21,27 @@ public sealed class MachineSessionServiceTests
 
         Assert.True(connected.IsSuccessful);
         Assert.True(disconnected.IsSuccessful);
-        Assert.Equal(1, gateway.ConnectCount);
+        Assert.Equal(1, gateway.AttachCount);
         Assert.Equal(1, gateway.DisconnectCount);
+        Assert.Empty(gateway.ExecutedCommands);
         Assert.Equal(MachineConnectionStatus.Disconnected, service.State.ConnectionStatus);
+    }
+
+    [Fact]
+    public async Task ConnectRequestsMachineLifecycleActivationOnlyFromDisconnectedSnapshot()
+    {
+        TestMachineGateway gateway = new()
+        {
+            AttachmentSnapshot = MachineSnapshot.Disconnected(Timestamp),
+        };
+        await using MachineSessionService service = CreateService(gateway);
+
+        MachineSessionOperationResult connected = await service.ConnectAsync(CancellationToken.None);
+
+        Assert.True(connected.IsSuccessful);
+        MachineCommand command = Assert.Single(gateway.ExecutedCommands);
+        Assert.Equal(MachineCommandType.ConnectRequested, command.Type);
+        Assert.Equal(MachineState.Ready, service.State.LatestSnapshot.State);
     }
 
     [Fact]
@@ -180,17 +198,21 @@ public sealed class MachineSessionServiceTests
         public TaskCompletionSource StreamCancellationObserved { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public int ConnectCount { get; private set; }
+        public int AttachCount { get; private set; }
 
         public int DisconnectCount { get; private set; }
 
+        public MachineSnapshot AttachmentSnapshot { get; set; } = CreateReadySnapshot();
+
+        public List<MachineCommand> ExecutedCommands { get; } = [];
+
         public Func<MachineCommand, CommandResult>? CommandHandler { get; set; }
 
-        public Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken)
+        public Task<MachineTransportAttachment> AttachAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            ConnectCount++;
-            return Task.FromResult<IMachineSession>(_session);
+            AttachCount++;
+            return Task.FromResult(new MachineTransportAttachment(_session, AttachmentSnapshot));
         }
 
         public Task DisconnectAsync(IMachineSession session, CancellationToken cancellationToken)
@@ -208,10 +230,15 @@ public sealed class MachineSessionServiceTests
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ExecutedCommands.Add(command);
             CommandResult result = CommandHandler?.Invoke(command)
                 ?? new CommandResult(
                     command.CorrelationId,
-                    StateTransitionResult.Accepted(MachineState.Ready, CreateReadySnapshot()));
+                    StateTransitionResult.Accepted(
+                        command.Type == MachineCommandType.ConnectRequested
+                            ? MachineState.Disconnected
+                            : MachineState.Ready,
+                        CreateReadySnapshot()));
             return Task.FromResult(result);
         }
 

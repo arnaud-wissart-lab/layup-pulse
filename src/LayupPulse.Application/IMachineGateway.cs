@@ -7,7 +7,10 @@ namespace LayupPulse.Application;
 /// </summary>
 public interface IMachineGateway : IAsyncDisposable
 {
-    public Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Ouvre et vérifie une session de transport locale sans modifier le cycle de vie de la machine.
+    /// </summary>
+    public Task<MachineTransportAttachment> AttachAsync(CancellationToken cancellationToken);
 
     public Task DisconnectAsync(IMachineSession session, CancellationToken cancellationToken);
 

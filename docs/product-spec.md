@@ -54,7 +54,7 @@ The machine exposes exactly these top-level states:
 
 | State | Meaning |
 | --- | --- |
-| `Disconnected` | No active communication session exists. |
+| `Disconnected` | Le cycle de vie de la session machine simulée est inactif. Un transport local peut néanmoins s’attacher pour lire cet état avant de demander la connexion métier. |
 | `Connecting` | A connection attempt is in progress and commands are restricted. |
 | `Ready` | Communication is healthy, prerequisites are met, and a cycle may be prepared or started. |
 | `Running` | The simulated layup cycle is advancing. |
@@ -68,7 +68,7 @@ Transitions must be deterministic and command validity must depend on the curren
 
 | Command | Intent |
 | --- | --- |
-| `Connect` | Establish a session with the simulator. |
+| `Connect` | Activer la session machine simulée depuis `Disconnected`, après l’attachement du transport local. |
 | `Disconnect` | End the session and return the client to `Disconnected`. |
 | `LoadRecipe` | Select and validate a fictional recipe for the next run. |
 | `Start` | Begin the loaded recipe from an allowed state. |

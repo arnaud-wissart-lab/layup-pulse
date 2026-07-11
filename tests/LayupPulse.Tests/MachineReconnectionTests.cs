@@ -24,7 +24,7 @@ public sealed class MachineReconnectionTests
         await service.DisconnectAsync(CancellationToken.None);
 
         Assert.Equal(MachineConnectionStatus.Disconnected, service.State.ConnectionStatus);
-        Assert.Equal(1, gateway.ConnectCount);
+        Assert.Equal(1, gateway.AttachCount);
         Assert.Equal(attemptsBeforeDisconnect, service.State.TelemetryMetrics.ReconnectCount);
         Assert.Equal(1, gateway.DisconnectCount);
     }
@@ -41,7 +41,7 @@ public sealed class MachineReconnectionTests
         await gateway.RequiredStreamAttemptsReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(1, gateway.MaximumConcurrentStreamAttempts);
-        Assert.Equal(1, gateway.MaximumConcurrentConnectAttempts);
+        Assert.Equal(1, gateway.MaximumConcurrentAttachAttempts);
         Assert.True(service.State.TelemetryMetrics.ReconnectCount >= 4);
 
         await service.DisconnectAsync(CancellationToken.None);
@@ -77,11 +77,11 @@ public sealed class MachineReconnectionTests
     private sealed class ReconnectGateway : IMachineGateway
     {
         private readonly int _requiredStreamAttempts;
-        private int _activeConnectAttempts;
+        private int _activeAttachAttempts;
         private int _activeStreamAttempts;
-        private int _connectCount;
+        private int _attachCount;
         private int _streamAttemptCount;
-        private int _maximumConcurrentConnectAttempts;
+        private int _maximumConcurrentAttachAttempts;
         private int _maximumConcurrentStreamAttempts;
 
         public ReconnectGateway(int requiredStreamAttempts = int.MaxValue)
@@ -92,29 +92,31 @@ public sealed class MachineReconnectionTests
         public TaskCompletionSource RequiredStreamAttemptsReached { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public int ConnectCount => Volatile.Read(ref _connectCount);
+        public int AttachCount => Volatile.Read(ref _attachCount);
 
         public int DisconnectCount { get; private set; }
 
-        public int MaximumConcurrentConnectAttempts => Volatile.Read(ref _maximumConcurrentConnectAttempts);
+        public int MaximumConcurrentAttachAttempts => Volatile.Read(ref _maximumConcurrentAttachAttempts);
 
         public int MaximumConcurrentStreamAttempts => Volatile.Read(ref _maximumConcurrentStreamAttempts);
 
-        public async Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken)
+        public async Task<MachineTransportAttachment> AttachAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int concurrent = Interlocked.Increment(ref _activeConnectAttempts);
-            UpdateMaximum(ref _maximumConcurrentConnectAttempts, concurrent);
+            int concurrent = Interlocked.Increment(ref _activeAttachAttempts);
+            UpdateMaximum(ref _maximumConcurrentAttachAttempts, concurrent);
             try
             {
-                Interlocked.Increment(ref _connectCount);
+                Interlocked.Increment(ref _attachCount);
                 await Task.Yield();
                 cancellationToken.ThrowIfCancellationRequested();
-                return new TestSession(Guid.NewGuid(), Timestamp);
+                return new MachineTransportAttachment(
+                    new TestSession(Guid.NewGuid(), Timestamp),
+                    new MachineSnapshot(MachineState.Ready, Timestamp));
             }
             finally
             {
-                Interlocked.Decrement(ref _activeConnectAttempts);
+                Interlocked.Decrement(ref _activeAttachAttempts);
             }
         }
 

@@ -94,10 +94,14 @@ public sealed class MachineSessionService : IMachineSessionService
             using CancellationTokenSource connectAttempt = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
                 connectionCancellation.Token);
-            connectedSession = await _gateway.ConnectAsync(connectAttempt.Token).ConfigureAwait(false);
-            MachineSnapshot snapshot = await _gateway
-                .GetSnapshotAsync(connectedSession, connectAttempt.Token)
+            MachineTransportAttachment attachment = await _gateway
+                .AttachAsync(connectAttempt.Token)
                 .ConfigureAwait(false);
+            connectedSession = attachment.Session;
+            MachineSnapshot snapshot = await EnsureMachineLifecycleConnectedAsync(
+                connectedSession,
+                attachment.Snapshot,
+                connectAttempt.Token).ConfigureAwait(false);
 
             pipeline = new TelemetryPipeline(
                 _timeProvider,
@@ -568,12 +572,16 @@ public sealed class MachineSessionService : IMachineSessionService
             SetTransportSession(null);
         }
 
-        IMachineSession connectedSession = await _gateway.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        MachineTransportAttachment attachment = await _gateway
+            .AttachAsync(cancellationToken)
+            .ConfigureAwait(false);
+        IMachineSession connectedSession = attachment.Session;
         try
         {
-            MachineSnapshot snapshot = await _gateway
-                .GetSnapshotAsync(connectedSession, cancellationToken)
-                .ConfigureAwait(false);
+            MachineSnapshot snapshot = await EnsureMachineLifecycleConnectedAsync(
+                connectedSession,
+                attachment.Snapshot,
+                cancellationToken).ConfigureAwait(false);
             GetPipeline()?.BeginSequenceScope();
             SetTransportSession(connectedSession);
             UpdateState(
@@ -590,6 +598,35 @@ public sealed class MachineSessionService : IMachineSessionService
             await TryAbandonSessionAsync(connectedSession).ConfigureAwait(false);
             throw;
         }
+    }
+
+    private async Task<MachineSnapshot> EnsureMachineLifecycleConnectedAsync(
+        IMachineSession session,
+        MachineSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
+        if (snapshot.State != MachineState.Disconnected)
+        {
+            return snapshot;
+        }
+
+        MachineCommand command = new(
+            Guid.NewGuid(),
+            MachineCommandType.ConnectRequested,
+            _timeProvider.GetUtcNow());
+        CommandResult result = await _gateway
+            .ExecuteCommandAsync(session, command, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.IsAccepted)
+        {
+            throw new MachineGatewayException(
+                MachineGatewayFailureKind.CommandRejected,
+                result.Transition.Rejection?.Message
+                    ?? "Le simulateur a rejeté l’activation du cycle de vie machine.");
+        }
+
+        return result.Transition.Snapshot;
     }
 
     private async Task MonitorFreshnessAsync(CancellationToken cancellationToken)

@@ -15,11 +15,11 @@ namespace LayupPulse.Infrastructure;
 /// </summary>
 public sealed class GrpcMachineGateway : IMachineGateway, IDemoFaultGateway
 {
-    private static readonly Action<ILogger, Guid, Uri, Exception?> SessionConnectedLog =
+    private static readonly Action<ILogger, Guid, Uri, Exception?> TransportAttachedLog =
         LoggerMessage.Define<Guid, Uri>(
             LogLevel.Information,
-            new EventId(1, nameof(SessionConnectedLog)),
-            "Session gRPC {SessionId} connectée à {Endpoint}.");
+            new EventId(1, nameof(TransportAttachedLog)),
+            "Session gRPC locale {SessionId} attachée à {Endpoint}.");
     private static readonly Action<ILogger, Guid, Exception?> SessionClosedLog =
         LoggerMessage.Define<Guid>(
             LogLevel.Information,
@@ -52,7 +52,7 @@ public sealed class GrpcMachineGateway : IMachineGateway, IDemoFaultGateway
         _endpoint = options.GetValidatedEndpoint();
     }
 
-    public async Task<IMachineSession> ConnectAsync(CancellationToken cancellationToken)
+    public async Task<MachineTransportAttachment> AttachAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
         GrpcChannel? channel = null;
@@ -61,22 +61,17 @@ public sealed class GrpcMachineGateway : IMachineGateway, IDemoFaultGateway
         {
             channel = GrpcChannel.ForAddress(_endpoint);
             MachineSimulator.MachineSimulatorClient client = new(channel);
-            Guid correlationId = Guid.NewGuid();
-            CommandResultMessage response = await ExecuteTransportAsync(
-                () => client.ExecuteCommandAsync(
-                    new ExecuteCommandRequest
-                    {
-                        CorrelationId = correlationId.ToString("D"),
-                        Command = TransportCommandType.Connect,
-                    },
+            MachineSnapshotMessage response = await ExecuteTransportAsync(
+                () => client.GetSnapshotAsync(
+                    new GetSnapshotRequest(),
                     deadline: CreateDeadline(),
                     cancellationToken: cancellationToken).ResponseAsync,
-                "connexion",
+                "attachement au simulateur",
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            EnsureAccepted(response, "connexion");
             DateTimeOffset connectedAt = _timeProvider.GetUtcNow();
+            MachineSnapshot snapshot = response.ToDomain(connectedAt);
             GrpcMachineSession session = new(Guid.NewGuid(), connectedAt, channel, client);
             if (!_sessions.TryAdd(session.SessionId, session))
             {
@@ -86,8 +81,8 @@ public sealed class GrpcMachineGateway : IMachineGateway, IDemoFaultGateway
             }
 
             channel = null;
-            SessionConnectedLog(_logger, session.SessionId, _endpoint, null);
-            return session;
+            TransportAttachedLog(_logger, session.SessionId, _endpoint, null);
+            return new MachineTransportAttachment(session, snapshot);
         }
         finally
         {
