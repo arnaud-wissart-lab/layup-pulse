@@ -22,6 +22,7 @@ public sealed class AlarmEngine
     private bool _forceWasArmedWhileRunning;
     private MachineState _previousMachineState = MachineState.Disconnected;
     private int _communicationRecoverySamples;
+    private Guid? _productionRunId;
 
     public AlarmEngine(TimeProvider timeProvider, AlarmEngineOptions options)
     {
@@ -40,6 +41,19 @@ public sealed class AlarmEngine
     public IReadOnlyList<AlarmEvent> History => _history
         .Reverse()
         .ToArray();
+
+    /// <summary>
+    /// Associe les prochaines alarmes levées au cycle de production courant.
+    /// </summary>
+    public void AssociateProductionRun(Guid? productionRunId)
+    {
+        if (productionRunId == Guid.Empty)
+        {
+            throw new ArgumentException("L’identifiant d’exécution ne peut pas être vide.", nameof(productionRunId));
+        }
+
+        _productionRunId = productionRunId;
+    }
 
     public bool EvaluateTelemetry(TelemetrySample sample)
     {
@@ -282,7 +296,16 @@ public sealed class AlarmEngine
             return false;
         }
 
-        _active.Add(key, new AlarmEvent(Guid.NewGuid(), code, severity, source, message, now));
+        _active.Add(
+            key,
+            new AlarmEvent(
+                Guid.NewGuid(),
+                code,
+                severity,
+                source,
+                message,
+                now,
+                productionRunId: _productionRunId));
         return true;
     }
 

@@ -17,13 +17,16 @@ LayupPulse est distribué sous licence MIT. Les dépendances directes conservent
 | Microsoft.Extensions.Hosting | 10.0.9 | MIT | Hébergement Desktop |
 | Microsoft.Extensions.Logging.Abstractions | 10.0.9 | MIT | Journalisation des adaptateurs |
 | Microsoft.Extensions.Logging.Debug | 10.0.9 | MIT | Sortie de diagnostic Desktop |
+| Microsoft.EntityFrameworkCore.Sqlite | 10.0.9 | MIT | Persistance locale SQLite |
 | ScottPlot.WPF | 5.1.59 | MIT | Tendances temps réel |
+| SQLitePCLRaw.bundle_e_sqlite3 | 3.0.3 | Apache-2.0 | Bibliothèque SQLite native corrigée |
 
 ## Dépendances de build et de test
 
 | Package | Version | Licence | Usage principal |
 | --- | --- | --- | --- |
 | Grpc.Tools | 2.80.0 | Apache-2.0 | Génération C# depuis protobuf |
+| Microsoft.EntityFrameworkCore.Design | 10.0.9 | MIT | Génération des migrations EF Core |
 | Microsoft.NET.Test.Sdk | 18.7.0 | MIT | Hôte de tests |
 | xunit | 2.9.3 | Apache-2.0 | Framework de tests |
 | xunit.runner.visualstudio | 3.1.5 | Apache-2.0 | Adaptateur de tests |

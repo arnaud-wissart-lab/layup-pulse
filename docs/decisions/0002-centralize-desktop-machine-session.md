@@ -22,5 +22,5 @@ Le Generic Host construit et détruit la passerelle, le service de session, les 
 - La détection de fraîcheur et la propagation des rejets sont testables sans Dispatcher ni serveur gRPC.
 - La présentation reste responsable du remarshalement et des collections observables.
 - Une interruption inattendue ferme la session locale et laisse l’interface dans un état reconnectable.
-- Les diagnostics récents sont bornés ; cet historique en mémoire ne remplace pas la future persistance.
+- Les diagnostics récents sont bornés ; cet historique en mémoire reste distinct de la persistance SQLite des runs, alarmes et agrégats.
 - La reconnexion automatique et la politique de pipeline ajoutées ensuite sont précisées par l’ADR 0003.

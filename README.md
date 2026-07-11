@@ -12,7 +12,7 @@ It showcases real-time gRPC communication, deterministic machine-state managemen
 ![LayupPulse overview during a simulated production run](docs/screenshots/overview-running.png)
 
 > [!IMPORTANT]
-> The current application implements the simulator, gRPC session, bounded telemetry, alarms, charts, and 3D overview. SQLite production history and the History page are not implemented. The corresponding demo step is documented as a target and must not be presented as complete on the current revision.
+> LayupPulse is a software demonstrator for a fictional simulated cell. Its local SQLite history supports demonstration traceability only; it is not an MES, a validated industrial record, or a control/safety function.
 
 ## Demo
 
@@ -33,7 +33,7 @@ The script checks the pinned .NET 10 SDK, builds only when outputs are missing o
 5. Observe the `Faulted` state and the high-temperature alarm.
 6. In **Alarms**, acknowledge the alarm; acknowledgment does not clear its condition.
 7. Return to **Diagnostics**, clear the fault, then select **Reset**.
-8. Open **History** and show the persisted run once the SQLite integration is complete. On the current revision, identify this page honestly as a known limitation.
+8. Open **History**, filter the persisted runs, then inspect the selected run’s alarms and one-second telemetry aggregates.
 9. Demonstrate communication loss and recovery only after rehearsing it on the target machine.
 
 The timed presenter notes and recovery guidance are in [docs/demo-scenario.md](docs/demo-scenario.md).
@@ -53,6 +53,8 @@ It is not a machine controller, safety system, manufacturing execution system, o
 - Automatic serialized reconnection with bounded exponential backoff.
 - Five deterministic simulated fault profiles and alarm rules.
 - Alarm raise, acknowledge, clear, and bounded in-memory history lifecycle.
+- Durable local SQLite history for run summaries, alarms, and one-second UTC aggregates.
+- Asynchronous bounded History view with final-status filtering and selected-run details.
 - ScottPlot trends capped by time window, refresh rate, and point count.
 - HelixToolkit/WPF 3D visualization driven by coalesced telemetry.
 - Focused unit, architecture, transport, cancellation, and integration tests.
@@ -88,7 +90,7 @@ Arrows mean “depends on.” Desktop and Simulator are the only composition roo
 | Presentation patterns | CommunityToolkit.Mvvm, Generic Host |
 | Charts | ScottPlot.WPF 5 |
 | 3D visualization | HelixToolkit.Wpf on WPF 3D |
-| Persistence target | EF Core 10 and SQLite; concrete adapter not yet implemented |
+| Persistence | EF Core 10, SQLite, and migrations |
 | Tests | xUnit and Microsoft.NET.Test.Sdk |
 | Automation | PowerShell and GitHub Actions on Windows |
 
@@ -137,9 +139,9 @@ The initial catalog covers high temperature, low material pressure, unstable com
 
 ## Data persistence
 
-The intended persistence boundary would use EF Core and local SQLite behind application ports for production runs, alarm occurrences, and downsampled telemetry aggregates. Domain entities must remain independent from EF Core, and future history queries must be asynchronous and bounded.
+EF Core and SQLite remain inside Infrastructure behind application-facing write and query ports. The database is created through the initial migration at `%LOCALAPPDATA%\LayupPulse\layuppulse.db`. The writer drains a bounded queue with short-lived contexts, while History queries are asynchronous, read-only, and capped by explicit result limits. A database failure is logged and surfaced as a non-fatal diagnostic; telemetry acquisition continues.
 
-On the current revision, the persistence contracts, concrete SQLite store, migrations, recording service, composition, and History ViewModel do not exist. No README or demo should claim that run history survives restart until those pieces and their integration tests are present.
+Only production-run summaries, alarm lifecycle records, and UTC-aligned one-second telemetry aggregates are durable. Raw 20 Hz samples are never stored. The History page lists the newest runs first, filters by final status, and loads bounded alarm and aggregate details for one selected run. SQLite provides local demonstrator continuity across desktop restarts, not industrial traceability guarantees.
 
 ## Getting started
 
@@ -224,7 +226,7 @@ dotnet test LayupPulse.sln -c Release --no-build
 git diff --check
 ```
 
-The suite covers domain transitions, recipe validation, deterministic simulation, fault behavior, alarm rules, bounded telemetry, reconnect serialization, gRPC mapping and process integration, cancellation, ViewModel command feedback, and project dependency directions.
+The suite covers domain transitions, recipe validation, deterministic simulation, fault behavior, alarm rules, bounded telemetry, reconnect serialization, gRPC mapping and process integration, cancellation, ViewModel command feedback, project dependency directions, real SQLite migrations, and persistence after reopening the database through a new context.
 
 ## Packaging
 
@@ -258,7 +260,7 @@ The package is self-contained, preserves native dependencies, does not use singl
 | `src/LayupPulse.Domain` | Technology-independent state, recipe, alarm, telemetry, and run rules |
 | `src/LayupPulse.Application` | Use cases, ports, session supervision, and bounded telemetry pipeline |
 | `src/LayupPulse.Contracts` | Versioned protobuf and generated gRPC types |
-| `src/LayupPulse.Infrastructure` | Concrete gRPC adapter and boundary reserved for future persistence integration |
+| `src/LayupPulse.Infrastructure` | Concrete gRPC and EF Core/SQLite adapters, records, queries, and migrations |
 | `src/LayupPulse.Simulator` | Separate deterministic simulator and gRPC server |
 | `src/LayupPulse.Desktop` | WPF views, ViewModels, controls, and composition root |
 | `tests/LayupPulse.Tests` | Unit, architecture, and integration tests |
@@ -268,11 +270,11 @@ The package is self-contained, preserves native dependencies, does not use singl
 
 ## Architecture decisions
 
-Material decisions are recorded under [docs/decisions](docs/decisions/README.md), including .NET 10, gRPC transport, centralized session ownership, bounded telemetry and reconnect behavior, ScottPlot/WPF 3D visualization, and the planned SQLite aggregation boundary.
+Material decisions are recorded under [docs/decisions](docs/decisions/README.md), including .NET 10, gRPC transport, centralized session ownership, bounded telemetry and reconnect behavior, ScottPlot/WPF 3D visualization, and the SQLite aggregation boundary.
 
 ## Known limitations
 
-- The SQLite store and durable History page are not wired on the current revision.
+- History is intentionally bounded to recent local runs and selected-run details; it has no export, authentication, server database, or general paging subsystem.
 - The local gRPC endpoint uses clear-text HTTP/2 and has no authentication or remote-deployment hardening.
 - The Windows package is unsigned and may trigger SmartScreen warnings.
 - Charts currently restore a transitive WPF compatibility asset that NuGet reports as targeting .NET Framework; runtime smoke testing mitigates but does not remove this dependency risk.
@@ -282,7 +284,6 @@ Material decisions are recorded under [docs/decisions](docs/decisions/README.md)
 
 ## Roadmap
 
-- Complete the concrete EF Core/SQLite adapter, migrations, recording orchestration, History ViewModel, and integration tests.
 - Add signed release provenance and a repeatable release workflow after the package format stabilizes.
 - Capture a short, versioned demonstration GIF after the final persistence workflow is available.
 - Continue measuring UI rendering and dependency compatibility before upgrading chart or 3D libraries.

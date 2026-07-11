@@ -24,14 +24,14 @@ Avant une présentation, vérifier que le port `5057` est libre, que l’afficha
 | 0:45–1:00 | Ouvrir **Diagnostics** et injecter **Surtempérature**. | La machine passe immédiatement à `Faulted`; l’alarme apparaît après son debounce déterministe. |
 | 1:00–1:15 | Ouvrir **Alarmes** et acquitter l’alarme. | L’alarme devient acquittée mais reste active : la condition n’est pas effacée. |
 | 1:15–1:30 | Revenir dans **Diagnostics**, lever la surtempérature, puis sélectionner **Reset**. | La condition disparaît, l’alarme passe à `Cleared` et la machine revient à `Ready`. |
-| 1:30–1:50 | Ouvrir **Historique** et sélectionner le run interrompu. | Cible : le run et ses événements persistent. État actuel : page placeholder, voir ci-dessous. |
+| 1:30–1:50 | Ouvrir **Historique**, filtrer sur **En défaut** et sélectionner le run interrompu. | Le résumé, l’alarme et les agrégats télémétriques d’une seconde sont relus depuis SQLite. |
 | 1:50–2:00 | Optionnel : injecter une coupure de communication, puis la lever. | La session affiche la reconnexion et revient à un état connecté sans bloquer l’interface. |
 
-## Limite actuelle à annoncer
+## Vérification de la persistance
 
-La révision actuelle ne contient pas encore l’adaptateur SQLite concret, les migrations, l’enregistrement des runs ni la page Historique fonctionnelle. Le point 10 du scénario produit reste donc un objectif vérifiable à la fin de cette intégration, pas une capacité à prétendre lors d’une démonstration actuelle.
+Après le parcours principal, fermer uniquement Desktop, le relancer, se reconnecter si nécessaire, puis rouvrir **Historique**. Le run précédent doit rester visible depuis `%LOCALAPPDATA%\LayupPulse\layuppulse.db`. Les détails montrent les alarmes et agrégats d’une seconde ; aucun échantillon brut à 20 Hz n’est stocké.
 
-Pour une démonstration honnête aujourd’hui, ouvrir **Historique**, montrer son état explicite, puis expliquer brièvement que les agrégats d’une seconde restent uniquement en mémoire. Les contrats applicatifs de persistance, l’adaptateur durable et leur intégration demeurent dans la feuille de route.
+Présenter cette capacité comme un historique local de démonstration. Elle ne fournit ni export, ni authentification, ni base serveur, ni garantie de traçabilité industrielle validée.
 
 ## Coupure de communication
 

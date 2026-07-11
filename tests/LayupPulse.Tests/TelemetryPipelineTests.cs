@@ -54,14 +54,19 @@ public sealed class TelemetryPipelineTests
     {
         MutableTimeProvider time = new(Timestamp);
         TelemetryPipeline pipeline = CreatePipeline(time, historyCapacity: 100);
+        Guid productionRunId = Guid.NewGuid();
+        pipeline.BeginProductionRun(productionRunId);
 
-        pipeline.Accept(CreateSample(1, force: 400));
+        pipeline.Accept(CreateSample(1, force: 400, timestamp: Timestamp.AddMilliseconds(100)));
         time.Advance(TimeSpan.FromMilliseconds(500));
-        pipeline.Accept(CreateSample(2, force: 500));
+        pipeline.Accept(CreateSample(2, force: 500, timestamp: Timestamp.AddMilliseconds(900)));
         time.Advance(TimeSpan.FromMilliseconds(500));
-        pipeline.Accept(CreateSample(3, force: 450));
+        pipeline.Accept(CreateSample(3, force: 450, timestamp: Timestamp.AddMilliseconds(1_100)));
 
         TelemetryAggregate aggregate = Assert.Single(pipeline.GetAggregateSnapshot());
+        Assert.Equal(productionRunId, aggregate.ProductionRunId);
+        Assert.Equal(Timestamp, aggregate.WindowStartedAt);
+        Assert.Equal(Timestamp.AddSeconds(1), aggregate.WindowEndedAt);
         Assert.Equal(2, aggregate.SampleCount);
         Assert.Equal(1, aggregate.FirstSequenceNumber);
         Assert.Equal(2, aggregate.LastSequenceNumber);
@@ -80,6 +85,24 @@ public sealed class TelemetryPipelineTests
         pipeline.Accept(CreateSample(5));
 
         Assert.Equal(3, pipeline.GetCurrentPublication().Metrics.DroppedSamples);
+    }
+
+    [Fact]
+    public void DelayedAlarmKeepsTheFaultedProductionRunAssociation()
+    {
+        MutableTimeProvider time = new(Timestamp);
+        TelemetryPipeline pipeline = CreatePipeline(time, historyCapacity: 100);
+        Guid productionRunId = Guid.NewGuid();
+        pipeline.BeginProductionRun(productionRunId);
+        pipeline.Accept(CreateHighTemperatureSample(1, MachineState.Running));
+
+        pipeline.EndProductionRun(retainAlarmAssociation: true);
+        time.Advance(TimeSpan.FromSeconds(1));
+        pipeline.Accept(CreateHighTemperatureSample(2, MachineState.Faulted));
+
+        AlarmEvent alarm = Assert.Single(pipeline.GetCurrentPublication().ActiveAlarms);
+        Assert.Equal(AlarmCode.HighTemperature, alarm.Code);
+        Assert.Equal(productionRunId, alarm.ProductionRunId);
     }
 
     [Fact]
@@ -112,8 +135,11 @@ public sealed class TelemetryPipelineTests
         },
         new AlarmEngine(time, new AlarmEngineOptions()));
 
-    private static TelemetrySample CreateSample(long sequence, double force = 450) => new(
-        Timestamp.AddMilliseconds(sequence * 50),
+    private static TelemetrySample CreateSample(
+        long sequence,
+        double force = 450,
+        DateTimeOffset? timestamp = null) => new(
+        timestamp ?? Timestamp.AddMilliseconds(sequence * 50),
         sequence,
         MachineState.Running,
         100,
@@ -126,4 +152,20 @@ public sealed class TelemetryPipelineTests
         6,
         25,
         98);
+
+    private static TelemetrySample CreateHighTemperatureSample(long sequence, MachineState state) => new(
+        Timestamp.AddMilliseconds(sequence * 50),
+        sequence,
+        state,
+        100,
+        75,
+        25,
+        120,
+        118,
+        450,
+        170,
+        6,
+        25,
+        70,
+        state == MachineState.Faulted ? [FaultType.HighTemperature] : []);
 }

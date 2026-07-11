@@ -24,9 +24,11 @@ public sealed class TelemetryPipelineOptions
             throw new ArgumentOutOfRangeException(nameof(UiPublicationInterval));
         }
 
-        if (AggregateInterval <= TimeSpan.Zero)
+        if (AggregateInterval != TimeSpan.FromSeconds(1))
         {
-            throw new ArgumentOutOfRangeException(nameof(AggregateInterval));
+            throw new ArgumentOutOfRangeException(
+                nameof(AggregateInterval),
+                "L’agrégation durable doit utiliser des buckets d’une seconde.");
         }
 
         if (HistoryDuration <= TimeSpan.Zero)

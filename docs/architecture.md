@@ -13,7 +13,7 @@ L’application de bureau et le simulateur sont des processus distincts. Le simu
 | `LayupPulse.Domain` | Machine states, valid transitions, command rules, telemetry value objects, alarms, recipes, and production-run rules. It has no solution-project dependency. |
 | `LayupPulse.Application` | Use-case orchestration, technology-neutral ports, cancellation boundaries, and application-level results. It may reference Domain only. |
 | `LayupPulse.Contracts` | Messages protobuf `layuppulse.v1` et types gRPC générés partagés par le client et le serveur. Le projet ne contient aucune préoccupation WPF ou de persistance. |
-| `LayupPulse.Infrastructure` | Concrete gRPC gateway and future persistence adapters. It implements Application ports and maps Contracts to Domain. |
+| `LayupPulse.Infrastructure` | Passerelle gRPC, adaptateur EF Core/SQLite, migrations et requêtes d’historique. Il implémente les ports Application et mappe Contracts vers Domain. |
 | `LayupPulse.Simulator` | Processus ASP.NET Core séparé, moteur déterministe, mappings explicites et serveur gRPC. Il ne contient ni interface de bureau ni persistance. |
 | `LayupPulse.Desktop` | WPF views, bounded ViewModels, desktop services, and the application composition root. ViewModels consume application-facing abstractions and never a `DbContext`. |
 | `LayupPulse.Tests` | Unit, integration, architecture, cancellation, and deterministic scenario tests. |
@@ -95,7 +95,7 @@ Acquisition, presentation, and persistence have different responsibilities and m
 | Simulator and acquisition | 20 échantillons par seconde par défaut, configurables de 1 à 50 | Préserver la séquence et la fraîcheur ; ne réaliser aucun travail UI. |
 | Publication UI | Jusqu’à 10 publications par seconde | Présenter le dernier échantillon et déplacer la tête 3D par transformation réutilisée. |
 | Rendu des graphiques | Jusqu’à 5 rafraîchissements par seconde | Relire l’historique borné, sous-échantillonner à 600 points par signal puis redessiner uniquement si une nouvelle capture existe. |
-| Agrégation future | Une fenêtre par seconde | Produire un résumé borné prêt pour un futur adaptateur de persistance ; aucune écriture EF Core ou SQLite n’existe dans cet incrément. |
+| Persistance agrégée | Un bucket UTC par seconde et par run | Écrire uniquement les résumés d’une seconde dans une file bornée ; aucun échantillon brut à 20 Hz n’entre dans SQLite. |
 
 Ces cadences sont configurables et restent explicitement séparées. Réduire la cadence UI ne modifie ni l’acquisition, ni l’évaluation des alarmes, ni le déterminisme du simulateur.
 
@@ -106,6 +106,8 @@ flowchart LR
     Reader --> Rules["AlarmEngine<br/>chaque échantillon"]
     Reader --> Rolling["Historique roulant<br/>60 s · 3 000 max"]
     Reader --> Aggregate["Agrégat<br/>1 s · 60 max"]
+    Aggregate --> PersistenceQueue["File de persistance bornée<br/>2 048 événements"]
+    PersistenceQueue --> SQLite["EF Core 10 + SQLite<br/>contextes courts"]
     Reader --> Coalescer["Dernière valeur<br/>publication ≈ 10 Hz"]
     Coalescer --> Dispatcher["Mise à jour WPF bornée<br/>Dispatcher"]
 ```
@@ -115,7 +117,7 @@ flowchart LR
 - La télémétrie serveur traverse un canal borné avec la politique explicite `DropOldest` ; le client détecte les trous de séquence.
 - Le chemin UI privilégie la fraîcheur : les échantillons intermédiaires restent évalués mais une seule dernière valeur est publiée par fenêtre de 100 ms. Le compteur de coalescence est observable.
 - L’historique client est limité simultanément à 60 secondes et 3 000 échantillons. À 20 Hz, il contient normalement environ 1 200 valeurs ; la capacité protège également la fréquence maximale de 50 Hz.
-- Les agrégats d’une seconde sont limités aux 60 plus récents. Ils ne sont pas persistés dans cette tâche.
+- Les agrégats d’une seconde sont limités aux 60 plus récents en mémoire et seuls les buckets associés à un run sont proposés à la file SQLite bornée de capacité 2 048.
 - Les alarmes actives sont uniques par code/source et l’historique en mémoire est limité à 500 occurrences.
 - Les collections WPF de diagnostics et d’alarmes sont respectivement limitées à 100 et 500 éléments ; aucune `ObservableCollection` ne reçoit la télémétrie brute.
 - Diagnostic logs use size and retention limits outside the UI collection model.
@@ -135,7 +137,7 @@ flowchart LR
 
 Desktop and Simulator are the only composition roots. Constructor injection supplies explicit dependencies; no service locator or global mutable container is permitted. Domain state transitions use deterministic inputs. Time, identifiers, storage, transport, and fault profiles are supplied through narrow ports when tests require control.
 
-Unit tests cover business rules and state transitions. Integration tests cover gRPC mapping, cancellation, and bounded-buffer behavior. End-to-end smoke tests start both processes only where the Windows CI environment supports them. SQLite persistence has no implementation or integration test on this revision.
+Unit tests cover business rules and state transitions. Integration tests cover gRPC mapping, cancellation, bounded-buffer behavior, migrations SQLite, upserts et réouverture durable avec une nouvelle factory de contextes. End-to-end smoke tests start both processes only where the Windows CI environment supports them.
 
 ### Moteur d’alarmes
 
@@ -211,9 +213,15 @@ sequenceDiagram
     end
 ```
 
-## 9. Persistence boundaries
+## 9. Frontières de persistance
 
-Les futurs types EF Core et le `DbContext` SQLite devront rester dans Infrastructure. Les ports de repository et de requête ne seront introduits dans Application qu’avec leurs consommateurs et leurs implémentations concrètes. Les entités du domaine ne dépendent d’aucun attribut EF Core. Les futurs ViewModels recevront des modèles de lecture ou services applicatifs et n’interrogeront jamais directement un `DbContext`.
+Les types EF Core, `HistoryDbContext`, records SQLite, configurations et migrations restent dans Infrastructure. Application expose `IHistoryWriter`, `IHistoryQueryService` et des modèles de lecture neutres ; Domain ne dépend d’aucun attribut ou package EF Core. `HistoryViewModel` interroge uniquement le port applicatif et ne référence jamais un `DbContext`.
+
+La base réside sous `%LOCALAPPDATA%\LayupPulse\layuppulse.db` et est créée exclusivement par `Database.MigrateAsync` ; `EnsureCreated` n’est utilisé nulle part. `IDbContextFactory<HistoryDbContext>` fournit un contexte court par écriture ou requête. Les lectures utilisent `AsNoTracking`, un tri serveur et des limites maximales explicites : 200 runs récents, 500 alarmes et 7 200 agrégats au niveau de l’adaptateur, avec des limites UI plus restrictives.
+
+Le chemin d’acquisition ne réalise aucune I/O SQLite. `MachineSessionService` suit un seul run actif, utilise l’identifiant de corrélation de `Start`, associe le pipeline avant le premier bucket, puis propose à une file bornée les créations, mises à jour, alarmes et agrégats terminés. La clé du run et la clé composite `(ProductionRunId, BucketStartedAtUtc)` rendent les reprises idempotentes. Les cycles encore marqués `Running` lors d’un redémarrage sont classés `Aborted` à l’initialisation suivante.
+
+Une défaillance de migration, d’écriture, de lecture ou une saturation de file est journalisée et publiée comme diagnostic non fatal. Le stockage peut alors perdre de l’historique, mais il ne doit ni bloquer la télémétrie, ni arrêter la reconnexion, ni faire tomber WPF. À l’arrêt normal, le producteur est coupé puis la file est drainée dans le délai global de fermeture.
 
 ## 10. Décisions technologiques et distribution
 

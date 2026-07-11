@@ -23,12 +23,14 @@ public sealed class ShellViewModelTests
             sessionService,
             new DemoModeOptions());
         AlarmsViewModel alarms = new(sessionService);
+        HistoryViewModel history = new(new TestHistoryQueryService());
         using ShellViewModel shell = new(
             sessionService,
             dispatcher,
             overview,
             diagnostics,
-            alarms);
+            alarms,
+            history);
 
         for (int index = 0; index < 100; index++)
         {
@@ -107,5 +109,21 @@ public sealed class ShellViewModelTests
         public bool AcknowledgeAlarm(Guid alarmId) => false;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class TestHistoryQueryService : IHistoryQueryService
+    {
+        public Task<IReadOnlyList<ProductionRunHistoryItem>> GetRecentRunsAsync(
+            ProductionRunStatus? status,
+            int maximumCount,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ProductionRunHistoryItem>>([]);
+
+        public Task<ProductionRunHistoryDetails?> GetRunDetailsAsync(
+            Guid productionRunId,
+            int maximumAlarmCount,
+            int maximumAggregateCount,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<ProductionRunHistoryDetails?>(null);
     }
 }

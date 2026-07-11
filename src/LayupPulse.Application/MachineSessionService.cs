@@ -12,7 +12,9 @@ public sealed class MachineSessionService : IMachineSessionService
     private readonly IDemoFaultGateway? _demoFaultGateway;
     private readonly TimeProvider _timeProvider;
     private readonly MachineSessionOptions _options;
+    private readonly IHistoryWriter? _historyWriter;
     private readonly object _stateLock = new();
+    private readonly object _historyLock = new();
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private readonly Queue<MachineDiagnosticMessage> _diagnostics = new();
     private MachineSessionState _state;
@@ -22,13 +24,16 @@ public sealed class MachineSessionService : IMachineSessionService
     private Task? _supervisorTask;
     private Task? _freshnessMonitorTask;
     private TelemetryPipeline? _pipeline;
+    private ActiveProductionRunAccumulator? _activeProductionRun;
+    private FinalizedProductionRun? _recentFinalizedProductionRun;
     private int _isDisposed;
 
     public MachineSessionService(
         IMachineGateway gateway,
         TimeProvider timeProvider,
         MachineSessionOptions options,
-        IDemoFaultGateway? demoFaultGateway = null)
+        IDemoFaultGateway? demoFaultGateway = null,
+        IHistoryWriter? historyWriter = null)
     {
         ArgumentNullException.ThrowIfNull(gateway);
         ArgumentNullException.ThrowIfNull(timeProvider);
@@ -39,7 +44,19 @@ public sealed class MachineSessionService : IMachineSessionService
         _demoFaultGateway = demoFaultGateway;
         _timeProvider = timeProvider;
         _options = options;
+        _historyWriter = historyWriter;
         _state = CreateInitialState();
+        if (_historyWriter is not null)
+        {
+            _historyWriter.DiagnosticOccurred += OnHistoryDiagnosticOccurred;
+            if (_historyWriter.LastDiagnosticMessage is { } diagnostic)
+            {
+                UpdateState(
+                    static state => state,
+                    MachineDiagnosticLevel.Error,
+                    $"Historique local indisponible : {diagnostic}");
+            }
+        }
     }
 
     public event EventHandler<MachineSessionStateChangedEventArgs>? StateChanged;
@@ -108,6 +125,8 @@ public sealed class MachineSessionService : IMachineSessionService
                 _options.Telemetry,
                 new AlarmEngine(_timeProvider, _options.Alarms));
             pipeline.PublicationReady += OnPipelinePublicationReady;
+            pipeline.AggregateCompleted += OnAggregateCompleted;
+            pipeline.AlarmStateChanged += OnAlarmStateChanged;
             TelemetryPipelinePublicationEventArgs initialPublication = pipeline.GetCurrentPublication();
             DateTimeOffset connectedAt = _timeProvider.GetUtcNow();
 
@@ -137,6 +156,17 @@ public sealed class MachineSessionService : IMachineSessionService
                 },
                 MachineDiagnosticLevel.Information,
                 "Connexion au simulateur établie.");
+
+            if (snapshot.State is MachineState.Running or MachineState.Paused
+                && snapshot.LoadedRecipe is not null)
+            {
+                BeginProductionRun(
+                    Guid.NewGuid(),
+                    snapshot.LoadedRecipe,
+                    connectedAt,
+                    pipeline,
+                    inferredAfterReconnect: true);
+            }
 
             Task supervisorTask = SuperviseTelemetryAsync(connectedSession, connectionCancellation.Token);
             Task freshnessMonitorTask = MonitorFreshnessAsync(connectionCancellation.Token);
@@ -184,6 +214,8 @@ public sealed class MachineSessionService : IMachineSessionService
             if (pipeline is not null)
             {
                 pipeline.PublicationReady -= OnPipelinePublicationReady;
+                pipeline.AggregateCompleted -= OnAggregateCompleted;
+                pipeline.AlarmStateChanged -= OnAlarmStateChanged;
             }
 
             connectionCancellation?.Dispose();
@@ -226,6 +258,13 @@ public sealed class MachineSessionService : IMachineSessionService
                 MachineDiagnosticLevel.Information,
                 "Déconnexion du simulateur en cours…");
 
+            FinalizeProductionRun(
+                ProductionRunStatus.Aborted,
+                _timeProvider.GetUtcNow(),
+                MachineState.Disconnected,
+                "Déconnexion de la session machine.",
+                pipeline);
+            ClearRecentProductionRunAssociation(pipeline);
             connectionCancellation.Cancel();
             streamAttemptCancellation?.Cancel();
             await AwaitBackgroundTasksAsync(supervisorTask, freshnessMonitorTask).ConfigureAwait(false);
@@ -296,6 +335,11 @@ public sealed class MachineSessionService : IMachineSessionService
                     ? $"Commande {command.Type} acceptée."
                     : result.Transition.Rejection?.Message ?? $"Commande {command.Type} rejetée.";
 
+                if (result.IsAccepted)
+                {
+                    ProcessAcceptedCommand(command, result.Transition.Snapshot);
+                }
+
                 UpdateState(
                     state => state with
                     {
@@ -364,6 +408,16 @@ public sealed class MachineSessionService : IMachineSessionService
                     ? $"Défaut simulé {fault} {action}."
                     : result.Transition.Rejection?.Message ?? $"Modification du défaut simulé {fault} rejetée.";
 
+                if (result.IsAccepted && result.Transition.Snapshot.State == MachineState.Faulted)
+                {
+                    FinalizeProductionRun(
+                        ProductionRunStatus.Faulted,
+                        _timeProvider.GetUtcNow(),
+                        MachineState.Faulted,
+                        $"Défaut critique simulé : {fault}.",
+                        GetPipeline());
+                }
+
                 UpdateState(
                     state => state with
                     {
@@ -413,6 +467,11 @@ public sealed class MachineSessionService : IMachineSessionService
         }
         finally
         {
+            if (_historyWriter is not null)
+            {
+                _historyWriter.DiagnosticOccurred -= OnHistoryDiagnosticOccurred;
+            }
+
             _operationLock.Dispose();
         }
     }
@@ -487,7 +546,11 @@ public sealed class MachineSessionService : IMachineSessionService
                         .ConfigureAwait(false))
                     {
                         receivedAnySample = true;
-                        GetPipeline()?.Accept(sample);
+                        TelemetryPipeline? pipeline = GetPipeline();
+                        EnsureProductionRunForTelemetry(sample, pipeline);
+                        AddProductionRunSample(sample);
+                        pipeline?.Accept(sample);
+                        ProcessTerminalTelemetry(sample, pipeline);
                         MachineConnectionStatus previousStatus = State.ConnectionStatus;
                         if (previousStatus is MachineConnectionStatus.Stale or MachineConnectionStatus.Reconnecting)
                         {
@@ -698,6 +761,238 @@ public sealed class MachineSessionService : IMachineSessionService
         ApplyPipelinePublication(publication);
     }
 
+    private void OnAggregateCompleted(object? sender, TelemetryAggregateCompletedEventArgs eventArgs)
+    {
+        lock (_stateLock)
+        {
+            if (!ReferenceEquals(sender, _pipeline))
+            {
+                return;
+            }
+        }
+
+        _historyWriter?.TryRecordTelemetryAggregate(eventArgs.Aggregate);
+    }
+
+    private void OnAlarmStateChanged(object? sender, TelemetryPipelinePublicationEventArgs publication)
+    {
+        lock (_stateLock)
+        {
+            if (!ReferenceEquals(sender, _pipeline))
+            {
+                return;
+            }
+        }
+
+        foreach (AlarmEvent alarm in publication.ActiveAlarms.Concat(publication.AlarmHistory))
+        {
+            _historyWriter?.TryRecordAlarm(alarm);
+            ProductionRun? updatedRun = null;
+            lock (_historyLock)
+            {
+                _activeProductionRun?.RegisterAlarm(alarm);
+                if (_recentFinalizedProductionRun?.Accumulator.RegisterAlarm(alarm) == true)
+                {
+                    updatedRun = _recentFinalizedProductionRun.CreateSnapshot();
+                }
+            }
+
+            if (updatedRun is not null)
+            {
+                _historyWriter?.TryRecordProductionRun(updatedRun);
+            }
+        }
+    }
+
+    private void OnHistoryDiagnosticOccurred(
+        object? sender,
+        HistoryPersistenceDiagnosticEventArgs eventArgs) =>
+        UpdateState(
+            static state => state,
+            MachineDiagnosticLevel.Error,
+            $"Historique local : {eventArgs.Message}");
+
+    private void ProcessAcceptedCommand(MachineCommand command, MachineSnapshot snapshot)
+    {
+        if (command.Type == MachineCommandType.Start && snapshot.LoadedRecipe is not null)
+        {
+            ClearRecentProductionRunAssociation(GetPipeline());
+            BeginProductionRun(
+                command.ProductionRunId ?? command.CorrelationId,
+                snapshot.LoadedRecipe,
+                command.Timestamp,
+                GetPipeline(),
+                inferredAfterReconnect: false);
+            return;
+        }
+
+        if (command.Type == MachineCommandType.Stop)
+        {
+            FinalizeProductionRun(
+                ProductionRunStatus.Aborted,
+                command.Timestamp,
+                MachineState.Ready,
+                "Arrêt demandé par l’opérateur.",
+                GetPipeline());
+            return;
+        }
+
+        if (command.Type == MachineCommandType.Reset)
+        {
+            ClearRecentProductionRunAssociation(GetPipeline());
+        }
+    }
+
+    private void EnsureProductionRunForTelemetry(
+        TelemetrySample sample,
+        TelemetryPipeline? pipeline)
+    {
+        if (sample.MachineState is not (MachineState.Running or MachineState.Paused))
+        {
+            return;
+        }
+
+        lock (_historyLock)
+        {
+            if (_activeProductionRun is not null)
+            {
+                return;
+            }
+        }
+
+        ProductionRecipe? recipe = State.LatestSnapshot.LoadedRecipe;
+        if (recipe is not null)
+        {
+            BeginProductionRun(
+                Guid.NewGuid(),
+                recipe,
+                sample.Timestamp,
+                pipeline,
+                inferredAfterReconnect: true);
+        }
+    }
+
+    private void BeginProductionRun(
+        Guid productionRunId,
+        ProductionRecipe recipe,
+        DateTimeOffset startedAt,
+        TelemetryPipeline? pipeline,
+        bool inferredAfterReconnect)
+    {
+        ProductionRun runningRun = new(
+            productionRunId,
+            recipe,
+            ProductionRunStatus.Running,
+            startedAt);
+        lock (_historyLock)
+        {
+            if (_activeProductionRun is not null)
+            {
+                return;
+            }
+
+            _activeProductionRun = new ActiveProductionRunAccumulator(runningRun);
+            _recentFinalizedProductionRun = null;
+        }
+
+        _historyWriter?.TryRecordProductionRun(runningRun);
+        pipeline?.BeginProductionRun(productionRunId);
+        if (inferredAfterReconnect)
+        {
+            UpdateState(
+                static state => state,
+                MachineDiagnosticLevel.Warning,
+                "Un cycle déjà actif a été rattaché à un nouvel identifiant d’historique local.");
+        }
+    }
+
+    private void AddProductionRunSample(TelemetrySample sample)
+    {
+        lock (_historyLock)
+        {
+            _activeProductionRun?.Add(sample);
+        }
+    }
+
+    private void ProcessTerminalTelemetry(TelemetrySample sample, TelemetryPipeline? pipeline)
+    {
+        switch (sample.MachineState)
+        {
+            case MachineState.Completed:
+                FinalizeProductionRun(
+                    ProductionRunStatus.Completed,
+                    sample.Timestamp,
+                    MachineState.Completed,
+                    null,
+                    pipeline);
+                break;
+            case MachineState.Faulted:
+                FinalizeProductionRun(
+                    ProductionRunStatus.Faulted,
+                    sample.Timestamp,
+                    MachineState.Faulted,
+                    "Défaut critique simulé.",
+                    pipeline);
+                break;
+            case MachineState.Disconnected:
+                FinalizeProductionRun(
+                    ProductionRunStatus.Aborted,
+                    sample.Timestamp,
+                    MachineState.Disconnected,
+                    "Déconnexion de la session machine.",
+                    pipeline);
+                break;
+        }
+    }
+
+    private void FinalizeProductionRun(
+        ProductionRunStatus status,
+        DateTimeOffset endedAt,
+        MachineState terminalState,
+        string? reason,
+        TelemetryPipeline? pipeline)
+    {
+        ActiveProductionRunAccumulator? accumulator;
+        lock (_historyLock)
+        {
+            accumulator = _activeProductionRun;
+            _activeProductionRun = null;
+        }
+
+        if (accumulator is null)
+        {
+            return;
+        }
+
+        bool retainAlarmAssociation = status == ProductionRunStatus.Faulted;
+        pipeline?.EndProductionRun(retainAlarmAssociation);
+        FinalizedProductionRun finalized = new(
+            accumulator,
+            status,
+            endedAt,
+            terminalState,
+            reason);
+        if (retainAlarmAssociation)
+        {
+            lock (_historyLock)
+            {
+                _recentFinalizedProductionRun = finalized;
+            }
+        }
+
+        _historyWriter?.TryRecordProductionRun(finalized.CreateSnapshot());
+    }
+
+    private void ClearRecentProductionRunAssociation(TelemetryPipeline? pipeline)
+    {
+        lock (_historyLock)
+        {
+            _recentFinalizedProductionRun = null;
+        }
+
+        pipeline?.ClearProductionRunAssociation();
+    }
+
     private void ApplyPipelinePublication(TelemetryPipelinePublicationEventArgs? publication)
     {
         if (publication is null)
@@ -788,6 +1083,8 @@ public sealed class MachineSessionService : IMachineSessionService
         if (pipeline is not null)
         {
             pipeline.PublicationReady -= OnPipelinePublicationReady;
+            pipeline.AggregateCompleted -= OnAggregateCompleted;
+            pipeline.AlarmStateChanged -= OnAlarmStateChanged;
         }
 
         connectionCancellation.Dispose();
@@ -946,5 +1243,73 @@ public sealed class MachineSessionService : IMachineSessionService
     {
         int disposed = Volatile.Read(ref _isDisposed);
         ObjectDisposedException.ThrowIf(disposed != 0 && !allowDisposing, this);
+    }
+
+    private sealed class ActiveProductionRunAccumulator(ProductionRun runningRun)
+    {
+        private readonly HashSet<Guid> _alarmIds = [];
+        private double _temperatureSum;
+        private double _pressureSum;
+        private double _forceSum;
+        private double _feedRateSum;
+        private double _minimumProcessHealth = 100;
+        private double _completionPercentage;
+        private int _sampleCount;
+
+        public void Add(TelemetrySample sample)
+        {
+            _sampleCount++;
+            _temperatureSum += sample.HeaterTemperatureCelsius;
+            _pressureSum += sample.MaterialPressureBar;
+            _forceSum += sample.CompactionForceNewtons;
+            _feedRateSum += sample.ActualFeedRateMillimetersPerSecond;
+            _minimumProcessHealth = Math.Min(
+                _minimumProcessHealth,
+                sample.ProcessHealthPercentage);
+            _completionPercentage = sample.CycleProgressPercentage;
+        }
+
+        public bool RegisterAlarm(AlarmEvent alarm)
+        {
+            if (alarm.ProductionRunId != runningRun.Id)
+            {
+                return false;
+            }
+
+            return _alarmIds.Add(alarm.Id);
+        }
+
+        public ProductionRun Complete(
+            ProductionRunStatus status,
+            DateTimeOffset endedAt,
+            MachineState terminalState,
+            string? reason) => new(
+                runningRun.Id,
+                runningRun.Recipe,
+                status,
+                runningRun.StartedAt,
+                endedAt,
+                terminalState,
+                status == ProductionRunStatus.Completed ? 100 : _completionPercentage,
+                reason,
+                Average(_temperatureSum),
+                Average(_pressureSum),
+                Average(_forceSum),
+                Average(_feedRateSum),
+                _minimumProcessHealth,
+                _alarmIds.Count);
+
+        private double Average(double sum) => _sampleCount == 0 ? 0 : sum / _sampleCount;
+    }
+
+    private sealed record FinalizedProductionRun(
+        ActiveProductionRunAccumulator Accumulator,
+        ProductionRunStatus Status,
+        DateTimeOffset EndedAt,
+        MachineState TerminalState,
+        string? Reason)
+    {
+        public ProductionRun CreateSnapshot() =>
+            Accumulator.Complete(Status, EndedAt, TerminalState, Reason);
     }
 }

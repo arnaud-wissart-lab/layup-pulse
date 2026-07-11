@@ -32,10 +32,10 @@ P0 produces a coherent local demonstration on Windows with a separate simulator 
 
 ### Persistence and history
 
-- Add EF Core and SQLite in Infrastructure with an explicit initial migration.
-- Persist production runs, commands, state transitions, alarms, and downsampled telemetry snapshots.
-- Add bounded, cancellable persistence ingestion and paged history queries.
-- Test schema creation, round trips, concurrency expectations, and cancellation.
+- Maintain EF Core and SQLite in Infrastructure with explicit migrations.
+- Persist production-run summaries, alarms, and UTC-aligned one-second telemetry aggregates; never persist raw samples.
+- Keep persistence ingestion bounded and history queries asynchronous, cancellable, and capped for the demonstrator.
+- Test schema migration, round trips, idempotent updates, failure diagnostics, and reopening through a new context.
 
 ### Operator application
 

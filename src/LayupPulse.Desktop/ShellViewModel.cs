@@ -31,7 +31,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         IUiDispatcher dispatcher,
         OverviewViewModel overview,
         DiagnosticsViewModel diagnostics,
-        AlarmsViewModel alarms)
+        AlarmsViewModel alarms,
+        HistoryViewModel history)
     {
         _sessionService = sessionService;
         _sessionState = sessionService.State;
@@ -39,6 +40,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
         Overview = overview;
         Diagnostics = diagnostics;
         Alarms = alarms;
+        History = history;
 
         NavigationItems =
         [
@@ -50,10 +52,7 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             new NavigationItemViewModel(
                 "Historique",
                 "▤",
-                new PlaceholderPageViewModel(
-                    "Historique",
-                    "La persistance et l’historique ne sont pas implémentés dans cet incrément.",
-                    "▤")),
+                history),
             new NavigationItemViewModel("Diagnostics", "⌁", diagnostics),
         ];
 
@@ -71,6 +70,8 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
 
     public AlarmsViewModel Alarms { get; }
 
+    public HistoryViewModel History { get; }
+
     public NavigationItemViewModel? SelectedNavigation
     {
         get => _selectedNavigation;
@@ -79,6 +80,11 @@ public sealed class ShellViewModel : ObservableObject, IDisposable
             if (SetProperty(ref _selectedNavigation, value) && value is not null)
             {
                 CurrentPage = value.Page;
+                if (value.Page is HistoryViewModel history)
+                {
+                    history.RefreshCommand.Cancel();
+                    history.RefreshCommand.Execute(null);
+                }
             }
         }
     }

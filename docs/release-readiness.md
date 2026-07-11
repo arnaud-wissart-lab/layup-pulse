@@ -11,13 +11,23 @@
 - État local au début du présent audit de publication : arbre de travail propre, aucun diff indexé ou non indexé.
 - Portée relue : règles du dépôt, documentation produit/UI/architecture, ADR, projets et références, code Domain/Application/Contracts/Infrastructure/Simulator/Desktop, tests, configuration, scripts, workflow CI, README, capture publique et diff complet.
 
-## Validation locale exécutée pour le présent audit
+## Incrément d’historique durable v0.2.0
+
+La révision candidate `v0.2.0` ajoute EF Core 10.0.9, SQLite, la migration initiale, la persistance bornée des runs/alarmes/agrégats UTC d’une seconde et une page Historique fonctionnelle. Elle ne modifie ni le tag ni l’archive `v0.1.0`. Sa publication exige une CI propre et un nouveau contrôle du package autonome.
+
+Le stockage utilise `%LOCALAPPDATA%\LayupPulse\layuppulse.db`, des contextes courts créés par `IDbContextFactory` et une file bornée de 2 048 événements. Les échantillons bruts à 20 Hz ne sont pas persistés. Les erreurs SQLite sont journalisées et exposées comme diagnostics non fatals ; elles n’arrêtent ni la télémétrie ni WPF.
+
+## Validation locale de l’incrément d’historique
 
 | Commande ou contrôle | Résultat |
 | --- | --- |
-| `dotnet format LayupPulse.sln --verify-no-changes` | Première exécution en échec sur `ENDOFLINE` : le checkout local antérieur à `.gitattributes` conservait des fins de ligne CRLF. Après normalisation mécanique par `dotnet format LayupPulse.sln`, sans diff de code, la seconde exécution exacte a réussi avec le seul avertissement générique de chargement de l’espace de travail. |
-| `dotnet build LayupPulse.sln -c Release` | Réussi : 0 erreur et 5 occurrences de l’avertissement `NU1701` lié à `SkiaSharp.Views.WPF 3.119.0`, restauration comprise. |
-| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi : 94 tests, 0 échec, 0 ignoré, durée rapportée de 416 ms. |
+| `dotnet restore LayupPulse.sln` | Réussi ; packages EF Core/SQLite stables restaurés. |
+| `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; seul l’avertissement générique de chargement de l’espace de travail demeure. |
+| `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi : 0 erreur ; avertissement `NU1701` SkiaSharp déjà connu. |
+| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi : 105 tests, 0 échec, 0 ignoré. |
+| `dotnet test LayupPulse.sln -c Release --no-build --filter FullyQualifiedName~HistorySurvivesStoreShutdownAndAContextReopen` | Réussi : smoke test ciblé de migration, drainage, fermeture et réouverture SQLite par une nouvelle factory/contexte. |
+| `.\scripts\run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5 -Build` | Réussi : migration de la base utilisateur, démarrage du simulateur et de Desktop, stabilité pendant cinq secondes et nettoyage des processus. |
+| `dotnet list LayupPulse.sln package --include-transitive --vulnerable` | Réussi : aucun package vulnérable signalé ; `SQLitePCLRaw.bundle_e_sqlite3` est verrouillé en 3.0.3. |
 | `git diff --check` | Réussi, code de sortie 0 ; aucun défaut d’espace ou marqueur de conflit signalé. |
 
 Ces commandes sont exécutées depuis la racine du dépôt sur Windows. Elles établissent l’état local du correctif ; elles ne constituent ni un résultat GitHub Actions ni une validation de l’archive attachée à la release.
@@ -49,7 +59,7 @@ Le vert de `main` couvre `e94ad8e…`. Il ne valide pas par anticipation le pré
 
 - La release GitHub [`v0.1.0`](https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.1.0) publie `LayupPulse-win-x64.zip`, de 125 137 069 octets, avec le SHA-256 `877f1b67ec6dd7b3e47ca4ffd9a8732e8b763c8b02902e71a115f703c3e39361`.
 - Pendant le présent audit, l’archive attachée à la release a été téléchargée de nouveau. Son empreinte correspond à celle annoncée et son lanceur autonome a réussi un smoke test de cinq secondes.
-- Le `README.txt` déjà contenu dans cette archive ne mentionne pas l’absence d’Historique durable. La source `scripts/package-assets/README.txt` est corrigée pour l’indiquer explicitement ; l’archive publiée et le tag `v0.1.0` ne sont ni remplacés ni modifiés.
+- Le `README.txt` de l’archive publiée décrit correctement la limite de `v0.1.0`. La source `scripts/package-assets/README.txt` décrit désormais l’historique local pour un futur package ; l’archive publiée et le tag `v0.1.0` ne sont ni remplacés ni modifiés.
 - Cette vérification de l’archive publiée est distincte du workflow du commit tagué, qui avait ignoré son étape de packaging, et de l’artefact Actions produit plus tard depuis `e94ad8e…`.
 
 ## Scénarios fonctionnels couverts
@@ -63,6 +73,8 @@ Le vert de `main` couvre `e94ad8e…`. Il ne valide pas par anticipation le pré
 - Les canaux serveur, historiques télémétriques, agrégats, alarmes et diagnostics sont bornés. Les graphiques réutilisent l’historique borné et limitent leur rendu à 600 points par signal.
 - La géométrie 3D statique est créée une fois ; la tête réutilise une transformation et les chemins ne sont redécoupés qu’au changement de palier de progression.
 - La fermeture normale du client a été exercée après un cycle et un défaut. Desktop ne possède pas le processus Simulator ; les scripts de démonstration possèdent et nettoient les deux processus qu’ils lancent.
+- Les tests SQLite appliquent la migration sur un fichier réel, écrivent un run sans doublon, son alarme et son agrégat, ferment le writer, puis relisent les données avec une nouvelle factory et un nouveau contexte.
+- Le filtre d’état final et l’ordre du plus récent au plus ancien sont vérifiés sur le comportement SQLite réel.
 
 ## Défauts corrigés
 
@@ -72,6 +84,9 @@ Le vert de `main` couvre `e94ad8e…`. Il ne valide pas par anticipation le pré
 4. **Frontières de présentation trop larges.** `DiagnosticsViewModel` dépendait de `GrpcMachineGatewayOptions` et Desktop référençait directement Contracts sans l’utiliser. Le ViewModel reçoit maintenant une `Uri` neutre et la référence de projet superflue a été supprimée.
 5. **Abstractions de persistance spéculatives.** Des ports, modèles de requête et un service d’historique n’avaient ni implémentation, ni composition, ni consommateur. Ils ont été retirés afin que les abstractions correspondent à des frontières réelles. README, architecture et ADR précisent désormais que toute cette intégration reste absente.
 6. **Avertissement d’analyse du domaine.** La validation négative de `alarmCount` utilise la garde standard .NET, supprimant l’avertissement `CA1512`.
+7. **Agrégats sans run.** Le pipeline associait les agrégats à `Guid.Empty`. Le suivi du cycle utilise désormais l’identifiant de `Start` et ferme une seule fois chaque run.
+8. **Fenêtres non alignées.** Les fenêtres dépendaient de l’heure de réception. Les buckets sont maintenant alignés sur les secondes UTC de la télémétrie.
+9. **Alarme temporisée après défaut.** L’association du run est conservée pendant l’état `Faulted`, puis libérée au reset, au prochain cycle ou à la déconnexion.
 
 ## Audit d’architecture
 
@@ -88,28 +103,28 @@ Le vert de `main` couvre `e94ad8e…`. Il ne valide pas par anticipation le pré
 - Aucun secret, chemin absolu propre à une machine, base locale, log, symbole, binaire ou sortie de publication n’est versionné.
 - Les seuls `NotSupportedException` trouvés appartiennent à des doubles de test pour des opérations volontairement hors scénario ; aucun `NotImplementedException` n’existe.
 - Aucun `TODO`, `FIXME`, bypass de débogage ou code commenté obsolète n’a été trouvé.
-- La page `PlaceholderView` restante est intentionnelle et limitée à Historique ; cette limitation est visible dans l’interface, le README et la démonstration.
+- L’ancien `PlaceholderView` et son ViewModel ont été supprimés ; Historique possède sa vue et son ViewModel typés.
 - `appsettings.Development.json` du simulateur est intentionnel, portable et limité à des paramètres fictifs de bouclage local.
 
 ## Limites connues
 
-- L’historique SQLite, l’enregistrement durable et la page Historique ne sont pas implémentés. Le scénario « l’historique survit au redémarrage » n’a donc pas pu être exécuté et le critère P0 correspondant n’est pas satisfait.
+- La page Historique n’a pas encore fait l’objet d’une nouvelle capture publique ni d’un parcours UI Automation complet pour `v0.2.0` ; le comportement de lecture et de réouverture est couvert par les tests d’intégration.
 - Le build conserve l’avertissement `NU1701` lié à `SkiaSharp.Views.WPF 3.119.0`, dépendance transitive de la bibliothèque de graphiques. Les smoke tests réduisent le risque de démarrage, mais ne prouvent pas une compatibilité complète.
 - Aucun flux de traces de liaison WPF issu d’une session Visual Studio Debug n’a été capturé. Le parcours UI et les valeurs visibles n’ont révélé aucun symptôme de liaison défaillante, sans constituer une preuve d’absence de tout avertissement.
 - Le panneau de repli 3D a été relu, mais une panne d’initialisation 3D n’a pas été injectée manuellement.
 - La vérification visuelle a été réalisée à 1280 × 800 au facteur d’échelle courant, pas à l’ensemble de la plage 100–200 % annoncée par la spécification UI.
 - Le package Windows x64 n’est pas signé et peut déclencher SmartScreen.
-- Le workflow GitHub Actions est vert sur `e94ad8e…`, mais le correctif documentaire postérieur devra obtenir son propre résultat vert avant une release corrective.
-- Le `README.txt` de l’archive `v0.1.0` publiée n’expose pas la limite d’Historique durable, même si les notes de release l’indiquent. L’archive existante reste inchangée.
+- Le workflow GitHub Actions historique est vert sur `e94ad8e…` ; la révision candidate `v0.2.0` doit obtenir son propre résultat vert avant publication.
+- L’archive `v0.1.0` publiée reste antérieure à cet incrément et ne contient pas l’historique durable ; elle demeure inchangée.
 
 ## Risques résiduels
 
 - Une incompatibilité future de SkiaSharp avec une mise à jour du runtime ou du poste graphique peut affecter uniquement les tendances. Le contrôle prévoit un repli, mais la dépendance doit rester surveillée.
 - La reconnexion à une session réellement recréée après redémarrage complet du processus est couverte au niveau des règles et doubles de transport, pas par un scénario manuel de redémarrage du processus pendant le parcours UI.
-- L’absence de persistance empêche toute promesse de traçabilité durable et doit rester explicite dans une démonstration d’entretien.
+- SQLite reste un stockage local de démonstration sans politique de rétention, export, authentification, réplication ni garantie de traçabilité industrielle.
 
 ## Recommandation finale
 
-**Prêt sur `main` avec limites documentées ; correctif de release soumis à une nouvelle CI verte.**
+**Révision candidate `v0.2.0` validée localement ; publication soumise à sa CI et au contrôle du package.**
 
-Le `HEAD` public audité de `main` compile, passe ses tests et dispose d’une CI verte incluant le smoke test du package. Il ne doit toutefois pas être présenté comme P0 complet, car l’historique durable manque, ni comme application industrielle ou compatible avec du matériel réel. Une release corrective `v0.1.1` est appropriée pour diffuser ces corrections d’hygiène, mais seulement après commit et push du correctif, puis réussite du workflow GitHub Actions sur ce nouveau commit. Le tag et l’archive `v0.1.0` doivent rester inchangés.
+La révision candidate compile, passe les tests complets et le smoke test de réouverture SQLite. Elle ne doit être publiée sous `v0.2.0` qu’après réussite du workflow Windows et du packaging autonome correspondant. Cette capacité ne rend pas LayupPulse compatible avec du matériel réel et ne constitue pas une fonction de sûreté ou un système MES. Le tag et l’archive `v0.1.0` restent inchangés.

@@ -4,6 +4,25 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+## [0.2.0] — 2026-07-11
+
+### Ajouté
+
+- Persistance locale EF Core 10 et SQLite des exécutions, alarmes et agrégats UTC d’une seconde.
+- Migration initiale, file d’écriture bornée et requêtes asynchrones à contextes courts.
+- Page Historique fonctionnelle avec tri récent, filtre d’état final et détails du run sélectionné.
+- Tests d’intégration SQLite réels couvrant les migrations, les upserts et la réouverture de la base.
+
+### Corrigé
+
+- Association des agrégats et alarmes à l’identifiant du cycle actif au lieu de `Guid.Empty`.
+- Conservation de l’association d’alarme après un passage en défaut pour les règles temporisées.
+
+### Modifié
+
+- Alignement des agrégats télémétriques sur des buckets UTC d’une seconde.
+- Remontée des échecs SQLite comme diagnostics non fatals sans interrompre la télémétrie.
+
 ## [0.1.0] — 2026-07-11
 
 ### Ajouté
@@ -29,5 +48,6 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.1.0...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.1.0

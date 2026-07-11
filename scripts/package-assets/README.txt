@@ -21,11 +21,13 @@ SmartScreen is shown for this unsigned portfolio build, review the publisher
 information and run it only if you obtained the archive from the expected
 LayupPulse GitHub repository.
 
-Known limitation
-----------------
+Local history
+-------------
 
-Durable History is not implemented in v0.1.0. The History page is a
-placeholder, and production runs do not survive an application restart.
+Run summaries, alarms, and one-second telemetry aggregates are stored under
+%LOCALAPPDATA%\LayupPulse\layuppulse.db and remain available after a desktop
+restart. Raw 20 Hz samples are not stored. This local history is for software
+demonstration only and is not a validated industrial traceability record.
 
 Safety disclaimer
 -----------------

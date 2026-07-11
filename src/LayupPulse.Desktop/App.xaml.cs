@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using LayupPulse.Application;
 using LayupPulse.Infrastructure;
+using LayupPulse.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -69,6 +70,7 @@ public partial class App : System.Windows.Application
         builder.Configuration.GetSection("DemoMode").Bind(demoModeOptions);
 
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddLayupPulseHistory();
         builder.Services.AddSingleton(gatewayOptions);
         builder.Services.AddSingleton(machineEndpoint);
         builder.Services.AddSingleton(sessionOptions);
@@ -83,6 +85,7 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<OverviewViewModel>();
         builder.Services.AddSingleton<DiagnosticsViewModel>();
         builder.Services.AddSingleton<AlarmsViewModel>();
+        builder.Services.AddSingleton<HistoryViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 

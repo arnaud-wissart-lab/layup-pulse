@@ -2,9 +2,9 @@ using System.Windows.Controls;
 
 namespace LayupPulse.Desktop.Views;
 
-public partial class PlaceholderView : UserControl
+public partial class HistoryView : UserControl
 {
-    public PlaceholderView()
+    public HistoryView()
     {
         InitializeComponent();
     }

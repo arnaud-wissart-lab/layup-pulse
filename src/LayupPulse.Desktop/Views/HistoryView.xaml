@@ -1,0 +1,112 @@
+<UserControl x:Class="LayupPulse.Desktop.Views.HistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
+             Background="{StaticResource WindowBackgroundBrush}">
+  <Grid Margin="24,20,24,28">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="2*" />
+      <RowDefinition Height="14" />
+      <RowDefinition Height="3*" />
+    </Grid.RowDefinitions>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel>
+        <TextBlock Style="{StaticResource PageTitleStyle}" Text="Historique" />
+        <TextBlock Margin="0,4,0,14"
+                   Foreground="{StaticResource SecondaryTextBrush}"
+                   Text="Exécutions simulées persistées localement. Les détails utilisent uniquement les agrégats d’une seconde, jamais les échantillons bruts." />
+      </StackPanel>
+      <WrapPanel Grid.Column="1" VerticalAlignment="Center">
+        <TextBlock Margin="0,7,10,0"
+                   Style="{StaticResource LabelTextStyle}"
+                   Text="ÉTAT FINAL" />
+        <ComboBox Width="160"
+                  Margin="0,0,10,0"
+                  DisplayMemberPath="Label"
+                  ItemsSource="{Binding StatusFilters}"
+                  SelectedItem="{Binding SelectedStatusFilter}"
+                  automation:AutomationProperties.Name="Filtre d’état final" />
+        <Button Command="{Binding RefreshCommand}"
+                Content="Actualiser"
+                Style="{StaticResource SecondaryButtonStyle}"
+                automation:AutomationProperties.Name="Actualiser l’historique" />
+      </WrapPanel>
+    </Grid>
+
+    <Border Grid.Row="1"
+            Margin="0,0,0,10"
+            Padding="10,7"
+            Background="{StaticResource PanelBackgroundBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1">
+      <TextBlock Foreground="{StaticResource SecondaryTextBrush}"
+                 Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap" />
+    </Border>
+
+    <DataGrid Grid.Row="2"
+              ItemsSource="{Binding Runs}"
+              SelectedItem="{Binding SelectedRun}"
+              Style="{StaticResource IndustrialDataGridStyle}"
+              automation:AutomationProperties.Name="Exécutions de production persistées">
+      <DataGrid.Columns>
+        <DataGridTextColumn Width="155" Binding="{Binding Started}" Header="Début" />
+        <DataGridTextColumn Width="155" Binding="{Binding Ended}" Header="Fin" />
+        <DataGridTextColumn Width="85" Binding="{Binding Duration}" Header="Durée" />
+        <DataGridTextColumn Width="100" Binding="{Binding Status}" Header="État" />
+        <DataGridTextColumn Width="150" Binding="{Binding RecipeName}" Header="Recette" />
+        <DataGridTextColumn Width="105" Binding="{Binding PartReference}" Header="Pièce" />
+        <DataGridTextColumn Width="95" Binding="{Binding Completion}" Header="Progression" />
+        <DataGridTextColumn Width="75" Binding="{Binding AlarmCount}" Header="Alarmes" />
+        <DataGridTextColumn Width="105" Binding="{Binding AverageTemperature}" Header="Temp. moy." />
+        <DataGridTextColumn Width="105" Binding="{Binding AveragePressure}" Header="Pression moy." />
+        <DataGridTextColumn Width="95" Binding="{Binding AverageForce}" Header="Force moy." />
+        <DataGridTextColumn Width="105" Binding="{Binding AverageFeedRate}" Header="Débit moy." />
+        <DataGridTextColumn Width="95" Binding="{Binding MinimumHealth}" Header="Santé min." />
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <Border Grid.Row="4" Style="{StaticResource CardStyle}">
+      <TabControl>
+        <TabItem Header="Alarmes du cycle">
+          <DataGrid ItemsSource="{Binding SelectedRunAlarms}"
+                    Style="{StaticResource IndustrialDataGridStyle}"
+                    automation:AutomationProperties.Name="Alarmes de l’exécution sélectionnée">
+            <DataGrid.Columns>
+              <DataGridTextColumn Width="100" Binding="{Binding Severity}" Header="Sévérité" />
+              <DataGridTextColumn Width="150" Binding="{Binding Code}" Header="Code" />
+              <DataGridTextColumn Width="160" Binding="{Binding Source}" Header="Source" />
+              <DataGridTextColumn Width="*" Binding="{Binding Message}" Header="Message" />
+              <DataGridTextColumn Width="145" Binding="{Binding Raised}" Header="Levée" />
+              <DataGridTextColumn Width="145" Binding="{Binding Acknowledged}" Header="Acquittée" />
+              <DataGridTextColumn Width="145" Binding="{Binding Cleared}" Header="Terminée" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </TabItem>
+        <TabItem Header="Agrégats télémétriques">
+          <DataGrid ItemsSource="{Binding SelectedRunTelemetry}"
+                    Style="{StaticResource IndustrialDataGridStyle}"
+                    automation:AutomationProperties.Name="Agrégats télémétriques de l’exécution sélectionnée">
+            <DataGrid.Columns>
+              <DataGridTextColumn Width="155" Binding="{Binding Bucket}" Header="Bucket local" />
+              <DataGridTextColumn Width="85" Binding="{Binding SampleCount}" Header="Échantillons" />
+              <DataGridTextColumn Width="180" Binding="{Binding Temperature}" Header="Température moy. [min–max]" />
+              <DataGridTextColumn Width="185" Binding="{Binding Pressure}" Header="Pression moy. [min–max]" />
+              <DataGridTextColumn Width="180" Binding="{Binding Force}" Header="Force moy. [min–max]" />
+              <DataGridTextColumn Width="115" Binding="{Binding FeedRate}" Header="Débit moy." />
+              <DataGridTextColumn Width="150" Binding="{Binding ProcessHealth}" Header="Santé moy. / min." />
+              <DataGridTextColumn Width="100" Binding="{Binding Progress}" Header="Progression fin" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </TabItem>
+      </TabControl>
+    </Border>
+  </Grid>
+</UserControl>

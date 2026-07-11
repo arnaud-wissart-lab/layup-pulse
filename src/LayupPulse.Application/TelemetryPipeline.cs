@@ -20,7 +20,8 @@ public sealed class TelemetryPipeline
     private TelemetryAggregate? _latestAggregate;
     private DateTimeOffset? _lastTelemetryReceivedAt;
     private DateTimeOffset? _lastPublicationAt;
-    private DateTimeOffset? _aggregateWindowStartedAt;
+    private DateTimeOffset? _aggregateBucketStartedAt;
+    private Guid _activeProductionRunId;
     private long? _lastAcceptedSequenceNumber;
     private long _receivedSamples;
     private long _droppedSamples;
@@ -44,10 +45,16 @@ public sealed class TelemetryPipeline
 
     public event EventHandler<TelemetryPipelinePublicationEventArgs>? PublicationReady;
 
+    public event EventHandler<TelemetryAggregateCompletedEventArgs>? AggregateCompleted;
+
+    public event EventHandler<TelemetryPipelinePublicationEventArgs>? AlarmStateChanged;
+
     public void Accept(TelemetrySample sample)
     {
         ArgumentNullException.ThrowIfNull(sample);
         TelemetryPipelinePublicationEventArgs? publication = null;
+        TelemetryPipelinePublicationEventArgs? alarmPublication = null;
+        TelemetryAggregate? completedAggregate = null;
         DateTimeOffset receivedAt = _timeProvider.GetUtcNow();
 
         lock (_gate)
@@ -73,13 +80,15 @@ public sealed class TelemetryPipeline
             _latestTelemetry = sample;
             _lastTelemetryReceivedAt = receivedAt;
             AddToHistory(sample);
-            AddToAggregate(sample, receivedAt);
-            _alarmEngine.EvaluateTelemetry(sample);
+            completedAggregate = AddToAggregate(sample);
+            bool alarmStateChanged = _alarmEngine.EvaluateTelemetry(sample);
 
-            if (_lastPublicationAt is null
+            if (alarmStateChanged
+                || _lastPublicationAt is null
                 || receivedAt - _lastPublicationAt.Value >= _options.UiPublicationInterval)
             {
                 publication = CreatePublication(receivedAt);
+                alarmPublication = alarmStateChanged ? publication : null;
             }
             else
             {
@@ -87,7 +96,9 @@ public sealed class TelemetryPipeline
             }
         }
 
+        PublishAggregate(completedAggregate);
         Publish(publication);
+        PublishAlarmState(alarmPublication);
     }
 
     public void EvaluateCommunication(bool communicationExpected, DateTimeOffset? communicationStartedAt)
@@ -103,6 +114,7 @@ public sealed class TelemetryPipeline
         }
 
         Publish(publication);
+        PublishAlarmState(publication);
     }
 
     public bool AcknowledgeAlarm(Guid alarmId)
@@ -119,6 +131,7 @@ public sealed class TelemetryPipeline
         }
 
         Publish(publication);
+        PublishAlarmState(publication);
         return true;
     }
 
@@ -138,6 +151,58 @@ public sealed class TelemetryPipeline
         lock (_gate)
         {
             _lastAcceptedSequenceNumber = null;
+        }
+    }
+
+    /// <summary>
+    /// Ferme le bucket hors cycle éventuel puis associe les prochains agrégats et alarmes au cycle indiqué.
+    /// </summary>
+    public void BeginProductionRun(Guid productionRunId)
+    {
+        if (productionRunId == Guid.Empty)
+        {
+            throw new ArgumentException("L’identifiant d’exécution ne peut pas être vide.", nameof(productionRunId));
+        }
+
+        TelemetryAggregate? completedAggregate;
+        lock (_gate)
+        {
+            completedAggregate = CompleteAggregate();
+            _aggregateBucketStartedAt = null;
+            _activeProductionRunId = productionRunId;
+            _alarmEngine.AssociateProductionRun(productionRunId);
+        }
+
+        PublishAggregate(completedAggregate);
+    }
+
+    /// <summary>
+    /// Termine le dernier bucket du cycle et retire l’association pour la télémétrie suivante.
+    /// </summary>
+    public void EndProductionRun(bool retainAlarmAssociation = false)
+    {
+        TelemetryAggregate? completedAggregate;
+        lock (_gate)
+        {
+            completedAggregate = CompleteAggregate();
+            _aggregateBucketStartedAt = null;
+            Guid completedProductionRunId = _activeProductionRunId;
+            _activeProductionRunId = Guid.Empty;
+            _alarmEngine.AssociateProductionRun(
+                retainAlarmAssociation ? completedProductionRunId : null);
+        }
+
+        PublishAggregate(completedAggregate);
+    }
+
+    /// <summary>
+    /// Retire l’association d’alarme conservée après un cycle en défaut.
+    /// </summary>
+    public void ClearProductionRunAssociation()
+    {
+        lock (_gate)
+        {
+            _alarmEngine.AssociateProductionRun(null);
         }
     }
 
@@ -168,15 +233,17 @@ public sealed class TelemetryPipeline
     public void Complete()
     {
         TelemetryPipelinePublicationEventArgs? publication = null;
+        TelemetryAggregate? completedAggregate = null;
         lock (_gate)
         {
-            if (_accumulator.SampleCount > 0 && _aggregateWindowStartedAt is not null)
+            if (_accumulator.SampleCount > 0 && _aggregateBucketStartedAt is not null)
             {
-                CompleteAggregate(_timeProvider.GetUtcNow());
+                completedAggregate = CompleteAggregate();
                 publication = CreatePublication(_timeProvider.GetUtcNow());
             }
         }
 
+        PublishAggregate(completedAggregate);
         Publish(publication);
     }
 
@@ -195,27 +262,32 @@ public sealed class TelemetryPipeline
         }
     }
 
-    private void AddToAggregate(TelemetrySample sample, DateTimeOffset receivedAt)
+    private TelemetryAggregate? AddToAggregate(TelemetrySample sample)
     {
-        _aggregateWindowStartedAt ??= receivedAt;
-        if (_accumulator.SampleCount > 0
-            && receivedAt - _aggregateWindowStartedAt.Value >= _options.AggregateInterval)
+        DateTimeOffset bucketStartedAt = GetUtcBucketStart(sample.Timestamp);
+        TelemetryAggregate? completedAggregate = null;
+        if (_aggregateBucketStartedAt is not null
+            && bucketStartedAt != _aggregateBucketStartedAt.Value)
         {
-            CompleteAggregate(receivedAt);
-            _aggregateWindowStartedAt = receivedAt;
+            completedAggregate = CompleteAggregate();
         }
 
+        _aggregateBucketStartedAt = bucketStartedAt;
         _accumulator.Add(sample);
+        return completedAggregate;
     }
 
-    private void CompleteAggregate(DateTimeOffset endedAt)
+    private TelemetryAggregate? CompleteAggregate()
     {
-        if (_aggregateWindowStartedAt is null || _accumulator.SampleCount == 0)
+        if (_aggregateBucketStartedAt is null || _accumulator.SampleCount == 0)
         {
-            return;
+            return null;
         }
 
-        _latestAggregate = _accumulator.Create(_aggregateWindowStartedAt.Value, endedAt);
+        _latestAggregate = _accumulator.Create(
+            _activeProductionRunId,
+            _aggregateBucketStartedAt.Value,
+            _aggregateBucketStartedAt.Value + _options.AggregateInterval);
         _aggregates.Enqueue(_latestAggregate);
         while (_aggregates.Count > _options.AggregateCapacity)
         {
@@ -224,6 +296,14 @@ public sealed class TelemetryPipeline
 
         _aggregateCount++;
         _accumulator.Reset();
+        return _latestAggregate;
+    }
+
+    private DateTimeOffset GetUtcBucketStart(DateTimeOffset timestamp)
+    {
+        long intervalTicks = _options.AggregateInterval.Ticks;
+        long utcTicks = timestamp.UtcTicks;
+        return new DateTimeOffset(utcTicks - (utcTicks % intervalTicks), TimeSpan.Zero);
     }
 
     private TelemetryPipelinePublicationEventArgs CreatePublication(DateTimeOffset publishedAt)
@@ -293,6 +373,22 @@ public sealed class TelemetryPipeline
         }
     }
 
+    private void PublishAggregate(TelemetryAggregate? aggregate)
+    {
+        if (aggregate is not null)
+        {
+            AggregateCompleted?.Invoke(this, new TelemetryAggregateCompletedEventArgs(aggregate));
+        }
+    }
+
+    private void PublishAlarmState(TelemetryPipelinePublicationEventArgs? publication)
+    {
+        if (publication is not null)
+        {
+            AlarmStateChanged?.Invoke(this, publication);
+        }
+    }
+
     private sealed class AggregateAccumulator
     {
         private double _feedRateSum;
@@ -337,9 +433,12 @@ public sealed class TelemetryPipeline
             _endOfBucketCycleProgress = sample.CycleProgressPercentage;
         }
 
-        public TelemetryAggregate Create(DateTimeOffset startedAt, DateTimeOffset endedAt) => new(
+        public TelemetryAggregate Create(
+            Guid productionRunId,
+            DateTimeOffset startedAt,
+            DateTimeOffset endedAt) => new(
             Guid.NewGuid(),
-            Guid.Empty,
+            productionRunId,
             startedAt,
             endedAt,
             SampleCount,
