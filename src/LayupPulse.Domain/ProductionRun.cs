@@ -54,10 +54,7 @@ public sealed record ProductionRun
                 "La santé minimale du procédé doit être comprise entre 0 et 100.");
         }
 
-        if (alarmCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(alarmCount));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(alarmCount);
 
         Id = id;
         Recipe = recipe;
