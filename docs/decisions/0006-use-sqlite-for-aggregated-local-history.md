@@ -10,7 +10,7 @@ Le démonstrateur doit conserver localement les exécutions simulées, les occur
 
 ## Décision
 
-L’historique local utilisera EF Core avec SQLite dans `LayupPulse.Infrastructure`. `LayupPulse.Application` définit les ports de production, d’alarme, d’agrégats et de gestion du stockage local ; le domaine ne reçoit aucun attribut ni type EF Core.
+L’historique local utilisera EF Core avec SQLite dans `LayupPulse.Infrastructure`. `LayupPulse.Application` définira les ports de production, d’alarme, d’agrégats et de gestion du stockage local avec leurs premiers consommateurs concrets ; le domaine ne recevra aucun attribut ni type EF Core.
 
 La persistance télémétrique porte sur les agrégats d’une seconde produits par `TelemetryPipeline`, pas sur chaque échantillon brut. Les lectures sont asynchrones, annulables et bornées par run ou par nombre maximal de résultats. Les migrations, le chemin de base par utilisateur, la politique de rétention et la composition du service d’enregistrement doivent être explicites avant d’activer la page Historique.
 

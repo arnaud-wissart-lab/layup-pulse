@@ -12,7 +12,7 @@ It showcases real-time gRPC communication, deterministic machine-state managemen
 ![LayupPulse overview during a simulated production run](docs/screenshots/overview-running.png)
 
 > [!IMPORTANT]
-> The current application implements the simulator, gRPC session, bounded telemetry, alarms, charts, and 3D overview. SQLite production-history ports are present, but the concrete store and History page are still being integrated. The corresponding demo step is documented as a target and must not be presented as complete on the current revision.
+> The current application implements the simulator, gRPC session, bounded telemetry, alarms, charts, and 3D overview. SQLite production history and the History page are not implemented. The corresponding demo step is documented as a target and must not be presented as complete on the current revision.
 
 ## Demo
 
@@ -65,7 +65,7 @@ LayupPulse uses dependency inversion to keep domain and application behavior ind
 ```mermaid
 flowchart LR
     Desktop["LayupPulse.Desktop<br/>WPF composition root"] --> Application["LayupPulse.Application<br/>use cases and ports"]
-    Desktop --> Infrastructure["LayupPulse.Infrastructure<br/>gRPC and persistence adapters"]
+    Desktop --> Infrastructure["LayupPulse.Infrastructure<br/>gRPC adapter"]
     Desktop --> Domain["LayupPulse.Domain<br/>deterministic rules"]
     Infrastructure --> Application
     Infrastructure --> Domain
@@ -74,7 +74,6 @@ flowchart LR
     Simulator --> Domain
     Simulator --> Application
     Application --> Domain
-    Infrastructure -. "SQLite integration in progress" .-> SQLite[("Local SQLite history")]
 ```
 
 Arrows mean “depends on.” Desktop and Simulator are the only composition roots. ViewModels consume application-facing abstractions and never access a `DbContext` directly. See [docs/architecture.md](docs/architecture.md) for the complete boundaries and data-rate design.
@@ -138,9 +137,9 @@ The initial catalog covers high temperature, low material pressure, unstable com
 
 ## Data persistence
 
-The intended persistence boundary uses EF Core and local SQLite behind application ports for production runs, alarm occurrences, and downsampled telemetry aggregates. Domain entities remain independent from EF Core, and history queries are designed to be asynchronous and bounded.
+The intended persistence boundary would use EF Core and local SQLite behind application ports for production runs, alarm occurrences, and downsampled telemetry aggregates. Domain entities must remain independent from EF Core, and future history queries must be asynchronous and bounded.
 
-On the current revision, the application-layer contracts and query service exist, but the concrete SQLite store, migrations, recording service, composition, and History ViewModel are not complete. No README or demo should claim that run history survives restart until those pieces and their integration tests are present.
+On the current revision, the persistence contracts, concrete SQLite store, migrations, recording service, composition, and History ViewModel do not exist. No README or demo should claim that run history survives restart until those pieces and their integration tests are present.
 
 ## Getting started
 

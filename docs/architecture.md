@@ -25,7 +25,7 @@ L’application de bureau et le simulateur sont des processus distincts. Le simu
 - Contracts is independent of WPF and Infrastructure.
 - Infrastructure may reference Domain, Application, and Contracts.
 - Simulator may reference Domain, Application, and Contracts.
-- Desktop may reference Domain, Application, Infrastructure, and Contracts.
+- Desktop may reference Domain, Application, and Infrastructure. Transport contracts remain behind Infrastructure.
 - Tests may reference only the projects under test.
 - Domain and Application never reference WPF, EF Core, SQLite, ASP.NET Core, generated gRPC types, or concrete gRPC clients.
 - ViewModels never reference `DbContext` directly.
@@ -37,7 +37,6 @@ flowchart LR
     Desktop["LayupPulse.Desktop<br/>WPF host"] --> Application["LayupPulse.Application<br/>use cases and ports"]
     Desktop --> Domain["LayupPulse.Domain<br/>business rules"]
     Desktop --> Infrastructure["LayupPulse.Infrastructure<br/>adapters"]
-    Desktop --> Contracts["LayupPulse.Contracts<br/>transport contracts"]
 
     Infrastructure --> Application
     Infrastructure --> Domain
@@ -135,7 +134,7 @@ flowchart LR
 
 Desktop and Simulator are the only composition roots. Constructor injection supplies explicit dependencies; no service locator or global mutable container is permitted. Domain state transitions use deterministic inputs. Time, identifiers, storage, transport, and fault profiles are supplied through narrow ports when tests require control.
 
-Unit tests cover business rules and state transitions. Integration tests cover gRPC mapping, SQLite persistence, cancellation, and bounded-buffer behavior. End-to-end smoke tests start both processes only where the Windows CI environment supports them.
+Unit tests cover business rules and state transitions. Integration tests cover gRPC mapping, cancellation, and bounded-buffer behavior. End-to-end smoke tests start both processes only where the Windows CI environment supports them. SQLite persistence has no implementation or integration test on this revision.
 
 ### Moteur d’alarmes
 
@@ -210,7 +209,7 @@ sequenceDiagram
 
 ## 9. Persistence boundaries
 
-Les futurs types EF Core et le `DbContext` SQLite resteront dans Infrastructure. Application définit déjà les ports de repository et de requête nécessaires à l’intégration en cours. Les entités du domaine ne dépendent d’aucun attribut EF Core. Les ViewModels recevront des modèles de lecture ou services applicatifs et n’interrogeront jamais directement un `DbContext`.
+Les futurs types EF Core et le `DbContext` SQLite devront rester dans Infrastructure. Les ports de repository et de requête ne seront introduits dans Application qu’avec leurs consommateurs et leurs implémentations concrètes. Les entités du domaine ne dépendent d’aucun attribut EF Core. Les futurs ViewModels recevront des modèles de lecture ou services applicatifs et n’interrogeront jamais directement un `DbContext`.
 
 ## 10. Décisions technologiques et distribution
 
