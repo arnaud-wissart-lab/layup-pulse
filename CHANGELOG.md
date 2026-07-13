@@ -4,6 +4,18 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+## [0.2.2] — 2026-07-13
+
+### Corrigé
+
+- Garantie d’une seule instance Desktop par session Windows, avec restauration et activation de la fenêtre existante.
+- Prévol du lanceur packagé contre les orchestrations concurrentes, les simulateurs existants et les conflits du point d’écoute `127.0.0.1:5057`.
+- Encodage UTF-8 compatible avec Windows PowerShell 5.1 pour les messages français du package.
+- États sombres explicites des listes déroulantes, onglets, grilles, cases à cocher, zones de texte et barres de défilement.
+- Suppression des colonnes DataGrid auto-générées dans les vues qui déclarent leurs propres colonnes.
+- Libellés français, noms techniques et aide contextuelle des défauts de simulation et des mesures de diagnostic.
+- Documentation de l’avertissement Windows relatif à l’éditeur inconnu, sans contournement des protections du système.
+
 ## [0.2.1] — 2026-07-11
 
 ### Corrigé
@@ -57,7 +69,8 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.1.0

@@ -2,81 +2,135 @@
 
 ## Périmètre audité
 
-- Date de l’audit : 11 juillet 2026, fuseau Europe/Paris.
+- Date de la passe : 13 juillet 2026, fuseau Europe/Paris.
 - Dépôt public : `arnaud-wissart-lab/layup-pulse`.
-- Branche : `main`.
-- `HEAD` de départ de `main` audité : `772add1956f9aaa05c510220d8bd12e4da4caa64` (`fix(ci): stabilise l’arrêt de session et le test de coupure gRPC`).
-- Révision candidate finale : le commit qui porte ce document ; son SHA doit être celui du futur tag `v0.2.1` après réussite de sa CI.
-- Version : `0.2.1`, définie une seule fois dans `Directory.Build.props`.
-- Les tags `v0.1.0` et `v0.2.0` ne sont ni déplacés ni remplacés. Le nouveau tag `v0.2.1` ne sera créé qu’après réussite de la CI du commit final.
+- Branche de départ : `main` au commit
+  `e8dc8f2d49f7dba9ff71f3b78a474dac23ca6525`.
+- Version : `0.2.2`, définie dans `Directory.Build.props`.
+- Objet : durcissement de l’application packagée, de l’instance unique Desktop
+  et de la qualité visuelle WPF, sans modification de la machine d’états ni du
+  comportement de persistance.
 
-Le stockage durable reste limité au démonstrateur local : `%LOCALAPPDATA%\LayupPulse\layuppulse.db`, contextes EF Core courts créés par `IDbContextFactory`, migrations SQLite et file d’écriture bornée. Les échantillons bruts à 20 Hz ne sont pas persistés. Une erreur de base est journalisée et exposée comme diagnostic non fatal ; elle n’interrompt ni la télémétrie ni WPF.
+## État des versions publiques
 
-## Cohérence de version
+Le tag annoté `v0.2.1` pointe sur le commit de départ et la release publique
+`LayupPulse 0.2.1` a été publiée le 11 juillet 2026. Son actif
+`LayupPulse-win-x64.zip` mesure 128 275 071 octets et porte le SHA-256 publié
+`a112774d90a029863a345d58f070a936e55141f5b499834f73fb309cf1152321`.
+Ce tag et cet actif sont immuables et ne seront ni déplacés, ni remplacés.
 
-`Directory.Build.props` est la source de vérité de la version `0.2.1`. MSBuild l’applique aux builds Release Desktop et Simulator. `DiagnosticsViewModel` lit la version de l’assembly Desktop. `scripts/package-demo.ps1` lit la même propriété, refuse une valeur explicite divergente et l’utilise pour les métadonnées des deux publications. La CI appelle le script sans recopier de numéro de version.
+La correction prépare donc `v0.2.2`. Aucun tag, aucune release et aucun actif
+GitHub `v0.2.2` ne doivent être créés avant la revue des captures et du présent
+rapport de validation.
 
-Un test de régression vérifie la concordance entre la source MSBuild, les assemblies Desktop et Simulator, Diagnostics, le script de packaging, la CI, le changelog et le présent document.
+## Stratégies retenues
 
-## Validation locale de la passe de durcissement
+- Desktop utilise un mutex nommé limité à la session Windows et des événements
+  nommés avec acquittement pour restaurer et activer la fenêtre existante.
+- Le lanceur packagé utilise un mutex distinct, refuse un Desktop déjà actif,
+  identifie le détenteur du point d’écoute et vérifie que le socket prêt
+  appartient au PID Simulator qu’il vient de créer.
+- Un simulateur existant n’est pas réutilisé silencieusement. Le lanceur
+  s’arrête avec un message clair et ne termine jamais un processus qu’il n’a pas
+  créé.
+- Les contrôles WPF sensibles disposent de templates sombres explicites pour
+  leurs états usuels, sans dépendre des pinceaux système de sélection claire.
+- Les définitions des défauts de simulation centralisent le libellé français,
+  le nom technique anglais et l’aide contextuelle.
 
-Cette section décrit exclusivement les commandes exécutées dans l’arbre de travail local issu du `HEAD` ci-dessus. Elle ne constitue ni une validation GitHub Actions de modifications non commitées, ni une validation d’un actif de release déjà publié.
+## Validation locale
+
+Les résultats ci-dessous proviennent du package autonome reconstruit le
+13 juillet 2026 et de l’archive créée après la dernière correction visuelle.
+Une commande n’est marquée réussie qu’après constat de son code de sortie nul.
 
 | Commande ou contrôle | Résultat |
 | --- | --- |
-| Tests ciblés d’orchestration et de concurrence | Réussi dix fois de suite : 9 tests par passage, 0 échec. |
-| `dotnet restore LayupPulse.sln` | Réussi ; avertissement `NU1701` SkiaSharp connu. |
+| `dotnet restore LayupPulse.sln` | Réussi ; seul l’avertissement `NU1701` connu subsiste. |
 | `dotnet format LayupPulse.sln` | Réussi ; avertissement générique de chargement de l’espace de travail. |
-| `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; aucune modification de format restante. |
-| `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi : 0 erreur ; avertissement `NU1701` SkiaSharp connu. |
-| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi : 116 tests, 0 échec, 0 ignoré. |
-| `.\scripts\run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5 -Build` | Réussi : build, démarrage des deux processus, stabilité pendant cinq secondes et nettoyage. |
-| `.\scripts\package-demo.ps1 -Version 0.2.1` | Réussi : publications autonomes, smoke test intégré et archive de 128 275 073 octets. |
-| `.\artifacts\LayupPulse-win-x64\Run-LayupPulse.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi : second smoke test direct du package reconstruit. |
-| Contrôle des versions des assemblies packagées | Desktop et Simulator : assembly `0.2.1.0`, fichier `0.2.1.0`, produit candidat `0.2.1+772add1956f9`. Diagnostics affiche `0.2.1`. |
-| SHA-256 de l’archive candidate locale | `f7d8904ce68197d413a0e2277c0ad12be903735d85ed903f3d0355c3aae89670`. L’archive de release sera reconstruite depuis le commit final vert. |
-| `git diff --check` | Réussi : aucun défaut d’espace ni marqueur de conflit. |
+| `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; aucun changement de format requis. |
+| `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi ; 0 erreur, 3 occurrences de `NU1701`, dont le projet WPF temporaire. |
+| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi ; 123 tests, 0 échec, 0 test ignoré. |
+| `scripts/run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi ; Desktop et Simulator sont restés actifs pendant 5 secondes puis ont été arrêtés. |
+| `scripts/package-demo.ps1` | Réussi ; publications autonomes, smoke test packagé et contrôles d’encodage de l’archive réussis. |
+| `Run-LayupPulse.cmd` et scénarios d’instance/conflit | Réussis ; détail ci-dessous. |
+| Inspection visuelle et captures du package | Réussie à 125 % réel ; limites DPI détaillées ci-dessous. |
+| `git diff --check` | Réussi ; aucun défaut d’espace blanc, seulement les avertissements de normalisation de fins de ligne Git. |
 
-## Validation GitHub Actions actuelle
+### Package contrôlé
 
-La dernière exécution distante terminée pour le `HEAD` actuel est [GitHub Actions 29140837545](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/29140837545). Elle est réussie pour le commit `772add1956f9aaa05c510220d8bd12e4da4caa64` et couvre restauration, formatage, build Release, tests, packaging, smoke test et téléversement de l’artefact.
+- Archive : `artifacts/LayupPulse-win-x64.zip`.
+- Taille : 128 285 342 octets, soit 122,342 Mio.
+- SHA-256 :
+  `3bcb93330aeeaa7be0875bd034953962d2d0422c587926540595c1c448eba340`.
+- Versions de fichier Desktop et Simulator : `0.2.2.0`.
+- Versions produit Desktop et Simulator : `0.2.2+e8dc8f2d49f7`.
+- Le script PowerShell copié et son entrée dans le ZIP commencent tous deux
+  par la marque UTF-8 BOM attendue par Windows PowerShell 5.1.
+- Le README extrait de l’archive explique l’avertissement « Éditeur inconnu »,
+  limite l’exécution au dépôt officiel et documente le déblocage explicite.
 
-Cette réussite ne couvre pas les modifications locales non commitées de la présente passe. Aucune réussite GitHub Actions ne doit leur être attribuée tant qu’un éventuel commit final n’a pas sa propre exécution distante terminée avec succès.
+### Scénarios d’instance et de conflit
 
-## Validation des actifs de release publiés
+1. Le lancement normal par `Run-LayupPulse.cmd` crée exactement un Desktop et
+   un Simulator. Les quatre messages français attendus conservent leurs
+   accents.
+2. Une seconde exécution de `Run-LayupPulse.cmd` se termine avec le code 0 et
+   le message « Un lancement de LayupPulse est déjà en cours dans cette
+   session Windows. » ; les nombres de processus restent à un et un.
+3. Deux lanceurs démarrés quasi simultanément se terminent avec le code 0 ; le
+   maximum observé reste un Desktop et un Simulator.
+4. Avec un Simulator LayupPulse existant, le lanceur se termine avec le code 1,
+   n’ouvre aucun Desktop, nomme le PID et laisse le Simulator existant actif.
+5. Avec `127.0.0.1:5057` occupé par `powershell`, le lanceur se termine avec le
+   code 1, nomme le processus et le PID, et ne démarre ni Desktop ni Simulator.
+6. La fermeture du Desktop lancé par le package arrête le Simulator possédé par
+   ce lanceur. La fermeture d’un Desktop lancé directement laisse actif un
+   Simulator démarré indépendamment.
+7. Deux lancements directs de `LayupPulse.Desktop.exe` laissent un seul
+   Desktop. Le second se termine avec le code 0 et restaure la première fenêtre
+   minimisée dans son état maximisé.
+8. Un second `LayupPulse.Simulator.exe` sur le même point d’écoute se termine
+   avec le code 2, une seule ligne d’erreur et aucune trace de pile ; le premier
+   Simulator reste actif.
 
-### `v0.2.0`
+### Inspection visuelle
 
-- Le tag existant pointe sur `772add1956f9aaa05c510220d8bd12e4da4caa64`.
-- L’actif publié `LayupPulse-win-x64.zip` mesure 128 274 576 octets.
-- Son SHA-256 publié est `fa30018629557b128a995338ca55782b05ef7185fa8e292630c86a85e947d4dc`.
-- Cet actif est antérieur à la passe de durcissement locale. Sa validation ne prouve donc pas le comportement des changements locaux et il ne doit pas être présenté comme leur package reconstruit.
+La session Windows de validation expose réellement 120 DPI, soit 125 %. Toutes
+les pages ont été inspectées dans la fenêtre maximisée. Les états vérifiés
+comprennent la liste déroulante ouverte, les onglets sélectionnés et non
+sélectionnés, la sélection DataGrid active puis inactive, les contrôles
+désactivés, le survol, les infobulles, le focus clavier et la navigation au
+clavier. La touche Flèche droite a notamment sélectionné l’onglet
+« Agrégats télémétriques · 1 s », et la sélection d’une ligne Diagnostics est
+restée visible après déplacement du focus vers la navigation.
 
-### `v0.1.0`
+Les surfaces de fenêtre ont aussi été réduites à 2 048 × 1 104 et
+1 707 × 920 pixels physiques sur l’écran à 125 %, soit des surfaces logiques
+plus contraignantes que le plein écran attendu à 150 %. Les quatre pages sont
+restées utilisables grâce aux barres de défilement explicites. Ce contrôle de
+mise en page ne remplace pas une validation de rasterisation sur des sessions
+Windows réellement configurées à 100 % et 150 %.
 
-- Le tag et l’actif restent inchangés.
-- L’actif publié `LayupPulse-win-x64.zip` mesure 125 137 069 octets.
-- Son SHA-256 publié et revérifié est `877f1b67ec6dd7b3e47ca4ffd9a8732e8b763c8b02902e71a115f703c3e39361`.
-- Le `README.txt` de cette archive publiée inchangée a été inspecté pendant l’audit. Il ne décrit pas de limitation relative à un historique durable. Aucune affirmation inverse ne doit lui être attribuée.
-- L’absence d’historique durable dans `v0.1.0` est établie par le contenu logiciel et l’historique du dépôt, pas par une mention inexistante dans le `README.txt` de l’archive.
+Captures issues du package final :
 
-## Scénarios de durcissement couverts
+- `docs/screenshots/v0.2.2/overview-maximized.png` ;
+- `docs/screenshots/v0.2.2/combobox-open.png` ;
+- `docs/screenshots/v0.2.2/history-alarms-tab.png` ;
+- `docs/screenshots/v0.2.2/history-aggregates-tab.png` ;
+- `docs/screenshots/v0.2.2/diagnostics-faults-tooltip.png` ;
+- `docs/screenshots/v0.2.2/diagnostics-selected-row-columns.png`.
 
-- Pour un défaut de procédé continuant à produire de la télémétrie, le run local attend le premier échantillon terminal avant sa finalisation. Cet échantillon contribue aux moyennes, au minimum de santé, à la progression et au dernier agrégat durable.
-- `CommunicationDrop` est traité explicitement, car aucun échantillon terminal n’est garanti.
-- Lorsqu’un nouveau contexte de simulateur est attaché en état `Ready` ou `Disconnected`, le run local précédent est finalisé en `Aborted`, son association au pipeline est retirée et la télémétrie `Ready` suivante n’est pas rattachée à l’ancien run.
-- Un snapshot de remplacement encore `Running` ou `Paused` conserve le run local existant.
-- Les filtres et sélections de l’Historique utilisent des générations de requêtes. Une réponse obsolète ne peut ni remplacer la liste récente, ni effacer la sélection récente, ni terminer prématurément l’indicateur de chargement.
+## Risques et limites résiduels
 
-## Architecture et risques résiduels
-
-- Domain ne dépend d’aucune technologie d’infrastructure ; Application ne dépend que de Domain.
-- Les ViewModels n’accèdent pas au `DbContext` et les requêtes d’historique restent asynchrones et bornées.
-- Le build conserve l’avertissement `NU1701` connu lié à `SkiaSharp.Views.WPF 3.119.0`, dépendance transitive de la bibliothèque de graphiques.
-- Le package Windows x64 n’est pas signé et peut déclencher SmartScreen.
-- SQLite demeure un stockage local de démonstration, sans rétention, export, authentification, réplication ni garantie de traçabilité industrielle.
-- LayupPulse ne doit jamais être présenté comme adapté au pilotage d’un équipement industriel réel ou comme une fonction de sûreté.
-
-## Conclusion
-
-La passe de durcissement `0.2.1` est validée localement. Le `HEAD` distant de départ possède une CI verte, mais cette preuve est volontairement séparée des modifications locales et des actifs de release déjà publiés. Le commit final doit obtenir sa propre CI verte, puis son package doit être reconstruit et smoke-testé avant la création du tag.
+- Le package Windows x64 reste volontairement non signé ; Windows peut afficher
+  « Éditeur inconnu » ou SmartScreen.
+- La restauration du premier plan reste soumise aux règles Windows contre le
+  vol de focus. Si elle échoue, la seconde invocation affiche un message bref.
+- La session a permis une validation DPI réelle à 125 % uniquement. Les
+  sessions Windows à 100 % et 150 % restent à contrôler avant publication ;
+  seules des surfaces logiques plus contraintes ont été éprouvées localement.
+- L’avertissement `NU1701` connu de `SkiaSharp.Views.WPF 3.119.0` reste lié à la
+  dépendance transitive des graphiques.
+- LayupPulse demeure un démonstrateur logiciel fictif, impropre au pilotage
+  d’une machine réelle et à toute fonction de sûreté.
