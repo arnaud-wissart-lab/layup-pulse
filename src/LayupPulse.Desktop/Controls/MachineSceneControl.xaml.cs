@@ -273,6 +273,15 @@ public partial class MachineSceneControl : UserControl
 
     private void OnFitViewClicked(object sender, RoutedEventArgs eventArgs) => _viewport?.ZoomExtents(250);
 
+    private void OnSceneHelpClicked(object sender, RoutedEventArgs eventArgs)
+    {
+        SceneHelpToolTip.PlacementTarget = SceneHelpButton;
+        SceneHelpToolTip.IsOpen = true;
+    }
+
+    private void OnSceneHelpButtonLostKeyboardFocus(object sender, RoutedEventArgs eventArgs) =>
+        SceneHelpToolTip.IsOpen = false;
+
     private void ShowFallback(Exception exception)
     {
         SceneHost.Children.Clear();

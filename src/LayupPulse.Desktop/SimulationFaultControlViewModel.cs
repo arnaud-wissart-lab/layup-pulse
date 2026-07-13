@@ -13,13 +13,11 @@ public sealed class SimulationFaultControlViewModel : ObservableObject
     private bool _isAvailable;
 
     public SimulationFaultControlViewModel(
-        string name,
-        FaultType fault,
+        SimulationFaultDefinition definition,
         IMachineSessionService sessionService,
         Action<string, bool> reportResult)
     {
-        Name = name;
-        Fault = fault;
+        Definition = definition;
         _sessionService = sessionService;
         _reportResult = reportResult;
         InjectCommand = new AsyncRelayCommand(
@@ -30,9 +28,17 @@ public sealed class SimulationFaultControlViewModel : ObservableObject
             () => IsAvailable && IsActive);
     }
 
-    public string Name { get; }
+    public SimulationFaultDefinition Definition { get; }
 
-    public FaultType Fault { get; }
+    public string Name => Definition.TechnicalName;
+
+    public string DisplayLabel => Definition.DisplayLabel;
+
+    public string Description => Definition.Description;
+
+    public string HelpText => Definition.HelpText;
+
+    public FaultType Fault => Definition.Fault;
 
     public IAsyncRelayCommand InjectCommand { get; }
 

@@ -101,7 +101,7 @@
               </Border>
               <Border Style="{StaticResource CompactKpiCardStyle}" ToolTip="Force de compactage simulée, en newtons">
                 <StackPanel>
-                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="COMPACTAGE" />
+                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="FORCE DE COMPACTAGE" />
                   <TextBlock Style="{StaticResource CompactNumericValueStyle}" Text="{Binding CompactionForce}" />
                 </StackPanel>
               </Border>
@@ -113,13 +113,13 @@
               </Border>
               <Border Style="{StaticResource CompactKpiCardStyle}" ToolTip="Pression de l’alimentation matière simulée, en bar">
                 <StackPanel>
-                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="PRESSION" />
+                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="PRESSION MATIÈRE" />
                   <TextBlock Style="{StaticResource CompactNumericValueStyle}" Text="{Binding MaterialPressure}" />
                 </StackPanel>
               </Border>
               <Border Style="{StaticResource CompactKpiCardStyle}" ToolTip="Indice synthétique de santé du procédé fictif, en pourcentage">
                 <StackPanel>
-                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="SANTÉ PROCÉDÉ" />
+                  <TextBlock Style="{StaticResource LabelTextStyle}" Text="SANTÉ DU PROCÉDÉ" />
                   <TextBlock Style="{StaticResource CompactNumericValueStyle}" Text="{Binding ProcessHealth}" />
                 </StackPanel>
               </Border>
@@ -201,7 +201,9 @@
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid Margin="5,2,5,6">
-              <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Tendances · 60 dernières secondes" />
+              <TextBlock Style="{StaticResource SectionTitleStyle}"
+                         Text="Tendances télémétriques · 60 dernières secondes"
+                         ToolTip="Évolution récente des mesures synthétiques reçues du simulateur." />
               <TextBlock HorizontalAlignment="Right"
                          VerticalAlignment="Center"
                          Foreground="{StaticResource MutedTextBrush}"

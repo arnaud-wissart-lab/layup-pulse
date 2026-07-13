@@ -14,7 +14,9 @@
       <UniformGrid Columns="3">
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="POINT D’ACCÈS CONFIGURÉ" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="POINT D’ACCÈS gRPC (ENDPOINT)"
+                       ToolTip="Adresse locale utilisée par Desktop pour communiquer avec Simulator via gRPC." />
             <TextBlock Margin="0,7,0,0"
                        FontFamily="{StaticResource NumericFont}"
                        Text="{Binding Endpoint}"
@@ -33,7 +35,9 @@
         </Border>
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="DERNIÈRE COMMUNICATION" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="DERNIÈRE COMMUNICATION"
+                       ToolTip="Instant et âge de la dernière télémétrie reçue avec succès." />
             <TextBlock Margin="0,7,0,0"
                        FontFamily="{StaticResource NumericFont}"
                        Text="{Binding LastSuccessfulCommunication}"
@@ -75,18 +79,22 @@
       <UniformGrid Columns="3">
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="REÇUS · COALESCÉS/PERDUS" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="ÉCHANTILLONS REÇUS"
+                       ToolTip="Les valeurs intermédiaires peuvent être regroupées pour borner la charge d’affichage ; une rupture de séquence est comptée comme perdue." />
             <TextBlock Margin="0,7,0,0"
                        FontFamily="{StaticResource NumericFont}"
                        Text="{Binding ReceivedSampleCount, StringFormat={}{0} reçus}" />
             <TextBlock Margin="0,4,0,0"
                        Foreground="{StaticResource WarningBrush}"
-                       Text="{Binding DroppedOrCoalescedSamples, StringFormat={}{0} coalescés ou perdus}" />
+                       Text="{Binding DroppedOrCoalescedSamples, StringFormat={}{0} regroupés ou ignorés (coalescés/perdus)}" />
           </StackPanel>
         </Border>
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="CADENCE D’ACQUISITION" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="CADENCE D’ACQUISITION"
+                       ToolTip="Fréquence à laquelle Desktop reçoit les échantillons du simulateur." />
             <TextBlock Margin="0,7,0,0"
                        Style="{StaticResource NumericValueStyle}"
                        Text="{Binding AcquisitionRate}" />
@@ -94,7 +102,9 @@
         </Border>
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="CADENCE DE PUBLICATION UI" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="CADENCE DE PUBLICATION UI"
+                       ToolTip="Fréquence maximale de mise à jour visible après regroupement des échantillons." />
             <TextBlock Margin="0,7,0,0"
                        Style="{StaticResource NumericValueStyle}"
                        Text="{Binding UiPublicationRate}" />
@@ -102,7 +112,9 @@
         </Border>
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="AGRÉGATS D’UNE SECONDE" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="AGRÉGATS D’UNE SECONDE"
+                       ToolTip="Résumés min., max. et moyens calculés pour chaque intervalle d’une seconde." />
             <TextBlock Margin="0,7,0,0"
                        Style="{StaticResource NumericValueStyle}"
                        Text="{Binding AggregateCount}" />
@@ -118,7 +130,9 @@
         </Border>
         <Border Style="{StaticResource KpiCardStyle}">
           <StackPanel>
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="HISTORIQUE · CAPACITÉ" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="HISTORIQUE · CAPACITÉ"
+                       ToolTip="Nombre d’échantillons conservés en mémoire dans une fenêtre bornée." />
             <TextBlock Margin="0,7,0,0"
                        Style="{StaticResource NumericValueStyle}"
                        Text="{Binding HistoryUtilization}" />
@@ -195,14 +209,22 @@
               <DataTemplate>
                 <Grid Margin="0,3">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="440" />
                     <ColumnDefinition Width="90" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock VerticalAlignment="Center"
-                             FontFamily="{StaticResource NumericFont}"
-                             Text="{Binding Name}" />
+                  <StackPanel VerticalAlignment="Center"
+                              ToolTip="{Binding HelpText}">
+                    <TextBlock FontWeight="SemiBold"
+                               Text="{Binding DisplayLabel}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,2,12,0"
+                               Foreground="{StaticResource SecondaryTextBrush}"
+                               FontSize="11"
+                               Text="{Binding Description}"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
                   <TextBlock Grid.Column="1"
                              VerticalAlignment="Center"
                              Foreground="{StaticResource SecondaryTextBrush}"
@@ -211,12 +233,14 @@
                           Command="{Binding InjectCommand}"
                           Content="Injecter"
                           Style="{StaticResource DangerButtonStyle}"
-                          automation:AutomationProperties.Name="{Binding Name, StringFormat=Injecter le défaut simulé {0}}" />
+                          ToolTip="{Binding HelpText}"
+                          automation:AutomationProperties.Name="{Binding DisplayLabel, StringFormat=Injecter le défaut simulé {0}}" />
                   <Button Grid.Column="3"
                           Command="{Binding ClearCommand}"
                           Content="Lever"
                           Style="{StaticResource SecondaryButtonStyle}"
-                          automation:AutomationProperties.Name="{Binding Name, StringFormat=Lever le défaut simulé {0}}" />
+                          ToolTip="{Binding HelpText}"
+                          automation:AutomationProperties.Name="{Binding DisplayLabel, StringFormat=Lever le défaut simulé {0}}" />
                 </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -231,8 +255,11 @@
                  Foreground="{StaticResource SecondaryTextBrush}"
                  Text="La collection est bornée aux 100 événements les plus récents." />
       <DataGrid Height="290"
+                AutoGenerateColumns="False"
                 ItemsSource="{Binding RecentMessages}"
-                Style="{StaticResource IndustrialDataGridStyle}">
+                Style="{StaticResource IndustrialDataGridStyle}"
+                automation:AutomationProperties.AutomationId="DiagnosticsMessagesDataGrid"
+                automation:AutomationProperties.Name="Messages applicatifs récents">
         <DataGrid.Columns>
           <DataGridTextColumn Width="110" Binding="{Binding Timestamp}" Header="Heure" />
           <DataGridTextColumn Width="36" Binding="{Binding Glyph}" Header="" />

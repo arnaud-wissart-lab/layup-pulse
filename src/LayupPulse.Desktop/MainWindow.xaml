@@ -9,6 +9,7 @@
         Height="800"
         MinWidth="1000"
         MinHeight="650"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}"
         Foreground="{StaticResource PrimaryTextBrush}"
@@ -98,7 +99,9 @@
           </Border>
           <StackPanel Width="170"
                       Margin="4,0,14,0">
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="RECETTE" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="RECETTE"
+                       ToolTip="Ensemble de paramètres fictifs chargé pour exécuter un cycle simulé." />
             <TextBlock Text="{Binding LoadedRecipe}"
                        TextTrimming="CharacterEllipsis"
                        ToolTip="{Binding LoadedRecipe}" />
@@ -117,7 +120,9 @@
           </StackPanel>
           <StackPanel Width="105"
                       Margin="0,0,14,0">
-            <TextBlock Style="{StaticResource LabelTextStyle}" Text="ÂGE TÉLÉMÉTRIE" />
+            <TextBlock Style="{StaticResource LabelTextStyle}"
+                       Text="ÂGE TÉLÉMÉTRIE"
+                       ToolTip="Temps écoulé depuis la dernière mesure reçue du simulateur." />
             <TextBlock FontFamily="{StaticResource NumericFont}"
                        FontSize="12"
                        Text="{Binding TelemetryAge}" />

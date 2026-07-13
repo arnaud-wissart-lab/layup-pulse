@@ -26,7 +26,8 @@
       <WrapPanel Grid.Column="1" VerticalAlignment="Center">
         <TextBlock Margin="0,7,10,0"
                    Style="{StaticResource LabelTextStyle}"
-                   Text="ÉTAT FINAL" />
+                   Text="ÉTAT FINAL"
+                   ToolTip="Résultat enregistré à la fin d’un cycle simulé." />
         <ComboBox Width="160"
                   Margin="0,0,10,0"
                   DisplayMemberPath="Label"
@@ -52,6 +53,7 @@
     </Border>
 
     <DataGrid Grid.Row="2"
+              AutoGenerateColumns="False"
               ItemsSource="{Binding Runs}"
               SelectedItem="{Binding SelectedRun}"
               Style="{StaticResource IndustrialDataGridStyle}"
@@ -75,8 +77,10 @@
 
     <Border Grid.Row="4" Style="{StaticResource CardStyle}">
       <TabControl>
-        <TabItem Header="Alarmes du cycle">
+        <TabItem Header="Alarmes du cycle"
+                 ToolTip="Alarmes enregistrées pendant l’exécution sélectionnée.">
           <DataGrid ItemsSource="{Binding SelectedRunAlarms}"
+                    AutoGenerateColumns="False"
                     Style="{StaticResource IndustrialDataGridStyle}"
                     automation:AutomationProperties.Name="Alarmes de l’exécution sélectionnée">
             <DataGrid.Columns>
@@ -90,12 +94,14 @@
             </DataGrid.Columns>
           </DataGrid>
         </TabItem>
-        <TabItem Header="Agrégats télémétriques">
+        <TabItem Header="Agrégats télémétriques · 1 s"
+                 ToolTip="Résumé des mesures regroupées par intervalle d’une seconde, sans échantillons bruts.">
           <DataGrid ItemsSource="{Binding SelectedRunTelemetry}"
+                    AutoGenerateColumns="False"
                     Style="{StaticResource IndustrialDataGridStyle}"
                     automation:AutomationProperties.Name="Agrégats télémétriques de l’exécution sélectionnée">
             <DataGrid.Columns>
-              <DataGridTextColumn Width="155" Binding="{Binding Bucket}" Header="Bucket local" />
+              <DataGridTextColumn Width="180" Binding="{Binding Bucket}" Header="Intervalle local (bucket)" />
               <DataGridTextColumn Width="85" Binding="{Binding SampleCount}" Header="Échantillons" />
               <DataGridTextColumn Width="180" Binding="{Binding Temperature}" Header="Température moy. [min–max]" />
               <DataGridTextColumn Width="185" Binding="{Binding Pressure}" Header="Pression moy. [min–max]" />

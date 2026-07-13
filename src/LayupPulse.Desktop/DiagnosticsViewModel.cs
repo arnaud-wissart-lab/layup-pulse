@@ -40,14 +40,12 @@ public sealed class DiagnosticsViewModel : ObservableObject
         Version? version = typeof(App).Assembly.GetName().Version;
         ApplicationVersion = version is null ? "Indisponible" : version.ToString(3);
         IsDemoMode = demoModeOptions.Enabled;
-        SimulationFaults =
-        [
-            new("OverTemperature", FaultType.HighTemperature, sessionService, ReportSimulationResult),
-            new("LowMaterialPressure", FaultType.LowMaterialPressure, sessionService, ReportSimulationResult),
-            new("UnstableCompactionForce", FaultType.UnstableCompactionForce, sessionService, ReportSimulationResult),
-            new("HeadPositionError", FaultType.HeadPositionError, sessionService, ReportSimulationResult),
-            new("CommunicationDrop", FaultType.CommunicationTimeout, sessionService, ReportSimulationResult),
-        ];
+        SimulationFaults = SimulationFaultDefinitions.All
+            .Select(definition => new SimulationFaultControlViewModel(
+                definition,
+                sessionService,
+                ReportSimulationResult))
+            .ToArray();
     }
 
     public string Endpoint { get; }

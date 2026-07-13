@@ -38,6 +38,15 @@
             </Trigger>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+              <Setter TargetName="Surface" Property="BorderThickness" Value="3,1,1,1" />
+            </Trigger>
+            <Trigger Property="IsMouseCaptureWithin" Value="True">
+              <Setter TargetName="Surface" Property="Opacity" Value="0.78" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Foreground" Value="{StaticResource DisabledTextBrush}" />
+              <Setter TargetName="Surface" Property="Background" Value="{StaticResource DisabledSurfaceBrush}" />
+              <Setter TargetName="Surface" Property="Opacity" Value="0.72" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

@@ -36,7 +36,8 @@
         <WrapPanel VerticalAlignment="Center">
           <TextBlock Margin="0,7,10,0"
                      Style="{StaticResource LabelTextStyle}"
-                     Text="SÉVÉRITÉ" />
+                     Text="SÉVÉRITÉ"
+                     ToolTip="Niveau d’importance attribué à l’alarme simulée." />
           <ComboBox Width="160"
                     Margin="0,0,22,0"
                     ItemsSource="{Binding SeverityFilters}"
@@ -45,11 +46,13 @@
           <CheckBox VerticalAlignment="Center"
                     IsChecked="{Binding ShowHistory}"
                     Content="Afficher l’historique"
+                    ToolTip="Inclut les alarmes terminées en plus des alarmes actives."
                     automation:AutomationProperties.Name="Basculer entre les alarmes actives et historiques" />
           <Button Margin="22,0,0,0"
                   Command="{Binding AcknowledgeCommand}"
                   Content="Acquitter la sélection"
                   Style="{StaticResource PrimaryButtonStyle}"
+                  ToolTip="Confirme la prise de connaissance sans supprimer la condition simulée."
                   automation:AutomationProperties.Name="Acquitter l’alarme sélectionnée" />
         </WrapPanel>
       </Border>
@@ -62,11 +65,13 @@
 
     <Grid Grid.Row="3">
       <DataGrid ItemsSource="{Binding VisibleAlarms}"
+                AutoGenerateColumns="False"
                 SelectedItem="{Binding SelectedAlarm}"
                 Style="{StaticResource IndustrialDataGridStyle}"
                 automation:AutomationProperties.Name="Liste des alarmes">
         <DataGrid.RowStyle>
-          <Style TargetType="DataGridRow">
+          <Style TargetType="DataGridRow"
+                 BasedOn="{StaticResource IndustrialDataGridRowStyle}">
             <Setter Property="Background" Value="{StaticResource DangerSurfaceBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Style.Triggers>

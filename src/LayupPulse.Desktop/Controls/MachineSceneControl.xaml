@@ -14,9 +14,34 @@
             Background="#D915212B"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
-            CornerRadius="4">
+      CornerRadius="4">
       <StackPanel>
-        <TextBlock FontSize="11" FontWeight="SemiBold" Text="CELLULE FICTIVE · VUE 3D" />
+        <StackPanel Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center"
+                     FontSize="11"
+                     FontWeight="SemiBold"
+                     Text="CELLULE FICTIVE · VUE 3D" />
+          <Button x:Name="SceneHelpButton"
+                  Width="24"
+                  MinHeight="24"
+                  Margin="7,0,0,0"
+                  Padding="0"
+                  VerticalAlignment="Center"
+                  automation:AutomationProperties.AutomationId="MachineSceneHelpButton"
+                  automation:AutomationProperties.HelpText="Cube bleu : tête de dépose simulée portée par le robot.&#10;Cylindre gris : moule ou mandrin sur lequel la fibre est déposée.&#10;Bandes vertes : passages de fibre considérés comme déjà déposés.&#10;Lignes grises : trajectoires restant à parcourir.&#10;La scène est schématique et ne simule pas la physique réelle du matériau."
+                  automation:AutomationProperties.Name="Afficher l’aide de la visualisation 3D"
+                  Click="OnSceneHelpClicked"
+                  Content="?"
+                  LostKeyboardFocus="OnSceneHelpButtonLostKeyboardFocus"
+                  Style="{StaticResource SecondaryButtonStyle}">
+            <Button.ToolTip>
+              <ToolTip x:Name="SceneHelpToolTip"
+                       Content="Cube bleu : tête de dépose simulée portée par le robot.&#10;Cylindre gris : moule ou mandrin sur lequel la fibre est déposée.&#10;Bandes vertes : passages de fibre considérés comme déjà déposés.&#10;Lignes grises : trajectoires restant à parcourir.&#10;La scène est schématique et ne simule pas la physique réelle du matériau."
+                       Placement="Bottom"
+                       automation:AutomationProperties.Name="Légende de la visualisation 3D" />
+            </Button.ToolTip>
+          </Button>
+        </StackPanel>
         <StackPanel Margin="0,5,0,0" Orientation="Horizontal">
           <TextBlock Foreground="#42C891" Text="━ Déposé" />
           <TextBlock Margin="12,0,0,0" Foreground="#6C8797" Text="━ Restant" />
