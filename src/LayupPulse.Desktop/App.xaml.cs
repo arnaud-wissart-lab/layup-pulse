@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using LayupPulse.Application;
 using LayupPulse.Infrastructure;
@@ -10,6 +11,10 @@ using Microsoft.Extensions.Logging;
 
 namespace LayupPulse.Desktop;
 
+[SuppressMessage(
+    "Design",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "Le cycle de vie WPF libère explicitement le coordinateur dans OnExit.")]
 public partial class App : System.Windows.Application
 {
     private static readonly Action<ILogger, Exception?> ShutdownTimeoutLog = LoggerMessage.Define(
@@ -22,12 +27,33 @@ public partial class App : System.Windows.Application
         "Une erreur est survenue pendant l’arrêt de l’application.");
     private IHost? _host;
     private MainWindow? _mainWindow;
+    private DesktopSingleInstanceCoordinator? _singleInstanceCoordinator;
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _singleInstanceCoordinator = new DesktopSingleInstanceCoordinator();
+        if (!_singleInstanceCoordinator.IsPrimaryInstance)
+        {
+            bool activated = _singleInstanceCoordinator.TryActivateExistingInstance(
+                TimeSpan.FromSeconds(2));
+            if (!activated)
+            {
+                MessageBox.Show(
+                    "LayupPulse est déjà ouvert dans cette session Windows.",
+                    "LayupPulse déjà ouvert",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            Shutdown(0);
+            return;
+        }
+
+        _singleInstanceCoordinator.StartListening(ActivateMainWindow);
 
         try
         {
@@ -49,6 +75,13 @@ public partial class App : System.Windows.Application
             await ShutdownHostAsync();
             Shutdown(1);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _singleInstanceCoordinator?.Dispose();
+        _singleInstanceCoordinator = null;
+        base.OnExit(e);
     }
 
     private static IHost BuildHost(string[] arguments)
@@ -120,6 +153,18 @@ public partial class App : System.Windows.Application
                 _mainWindow.Close,
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
+    }
+
+    private bool ActivateMainWindow()
+    {
+        MainWindow? window = _mainWindow;
+        if (window is null)
+        {
+            return false;
+        }
+
+        _ = Dispatcher.BeginInvoke(window.ActivateExistingInstance);
+        return true;
     }
 
     private async Task ShutdownHostAsync()

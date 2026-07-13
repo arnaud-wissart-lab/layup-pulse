@@ -25,10 +25,31 @@ public partial class MainWindow : Window
 
     private void OnClockTick(object? sender, EventArgs eventArgs) => _viewModel.RefreshClock();
 
+    public bool ActivateExistingInstance()
+    {
+        if (!IsVisible)
+        {
+            return false;
+        }
+
+        if (WindowState == WindowState.Minimized)
+        {
+            SystemCommands.RestoreWindow(this);
+        }
+
+        Show();
+        bool wpfActivated = Activate();
+        Topmost = true;
+        Topmost = false;
+        _ = Focus();
+        return wpfActivated || IsActive;
+    }
+
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
         _clockTimer.Stop();
         _clockTimer.Tick -= OnClockTick;
         Closed -= OnClosed;
     }
+
 }

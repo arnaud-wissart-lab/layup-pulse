@@ -19,6 +19,7 @@ public static class SimulatorHost
             .GetSection(SimulatorOptions.SectionName)
             .Get<SimulatorOptions>() ?? new SimulatorOptions();
 
+        builder.Logging.AddFilter("Microsoft.Extensions.Hosting.Internal.Host", LogLevel.None);
         builder.WebHost.UseUrls(configuredOptions.Endpoint);
         builder.WebHost.ConfigureKestrel(options =>
             options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http2));

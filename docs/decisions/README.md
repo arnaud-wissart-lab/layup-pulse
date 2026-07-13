@@ -11,3 +11,4 @@ Use sequential names such as `0001-use-grpc-for-simulator-transport.md`. Each de
 - [ADR 0005 — Utiliser .NET 10 comme socle versionné](0005-use-dotnet-10.md)
 - [ADR 0006 — Utiliser SQLite pour un historique local agrégé](0006-use-sqlite-for-aggregated-local-history.md)
 - [ADR 0007 — Séparer l’attachement transport du cycle de vie machine](0007-separate-transport-attachment-from-machine-lifecycle.md)
+- [ADR 0008 — Coordonner l’instance Desktop et le lanceur packagé](0008-coordinate-single-desktop-and-package-launcher.md)

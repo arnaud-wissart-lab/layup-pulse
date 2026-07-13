@@ -105,31 +105,71 @@ function Wait-EndpointReady {
             throw "Le simulateur s'est arrêté avant d'accepter les connexions (code $($Process.ExitCode))."
         }
 
-        $client = [System.Net.Sockets.TcpClient]::new()
-        try {
-            $connect = $client.BeginConnect($Uri.Host, $port, $null, $null)
-            if ($connect.AsyncWaitHandle.WaitOne(250)) {
-                $client.EndConnect($connect)
-                Start-Sleep -Milliseconds 200
-                $Process.Refresh()
-                if ($Process.HasExited) {
-                    throw "Le simulateur s'est arrêté pendant la vérification du point d'écoute (code $($Process.ExitCode))."
-                }
+        $listeners = @(Get-EndpointListeners -Uri $Uri)
+        $ownedListener = $listeners |
+            Where-Object { $_.OwningProcess -eq $Process.Id } |
+            Select-Object -First 1
+        $foreignListener = $listeners |
+            Where-Object { $_.OwningProcess -ne $Process.Id } |
+            Select-Object -First 1
+        if ($null -ne $foreignListener) {
+            throw "Le point d'écoute $Uri a été pris par un autre processus pendant le démarrage."
+        }
 
-                return
+        if ($null -ne $ownedListener) {
+            $client = [System.Net.Sockets.TcpClient]::new()
+            try {
+                $connect = $client.BeginConnect($Uri.Host, $port, $null, $null)
+                if ($connect.AsyncWaitHandle.WaitOne(250)) {
+                    $client.EndConnect($connect)
+                    $Process.Refresh()
+                    if ($Process.HasExited) {
+                        throw "Le simulateur s'est arrêté pendant la vérification du point d'écoute (code $($Process.ExitCode))."
+                    }
+
+                    $verifiedListener = Get-EndpointListeners -Uri $Uri |
+                        Where-Object { $_.OwningProcess -eq $Process.Id } |
+                        Select-Object -First 1
+                    if ($null -ne $verifiedListener) {
+                        return
+                    }
+                }
             }
-        }
-        catch [System.Net.Sockets.SocketException] {
-            # Le serveur est encore en cours de démarrage.
-        }
-        finally {
-            $client.Dispose()
+            catch [System.Net.Sockets.SocketException] {
+                # Le socket appartient au processus attendu mais n'accepte pas encore les connexions.
+            }
+            finally {
+                $client.Dispose()
+            }
         }
 
         Start-Sleep -Milliseconds 150
     }
 
     throw "Le simulateur n'a pas ouvert $Uri dans le délai de $($Timeout.TotalSeconds) secondes."
+}
+
+function Get-EndpointListeners {
+    param([Parameter(Mandatory)][Uri]$Uri)
+
+    $port = if ($Uri.IsDefaultPort) {
+        if ($Uri.Scheme -eq 'https') { 443 } else { 80 }
+    }
+    else {
+        $Uri.Port
+    }
+    $targetAddresses = @(
+        [System.Net.Dns]::GetHostAddresses($Uri.DnsSafeHost) |
+            ForEach-Object { $_.ToString() }
+    )
+
+    return @(
+        Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.LocalAddress -in $targetAddresses -or
+                $_.LocalAddress -in @('0.0.0.0', '::', '[::]')
+            }
+    )
 }
 
 function Stop-ChildProcess {
@@ -200,6 +240,11 @@ try {
         }
 
         New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null
+        $existingListener = Get-EndpointListeners -Uri $endpointUri | Select-Object -First 1
+        if ($null -ne $existingListener) {
+            throw "Le point d'écoute $Endpoint est déjà occupé par le PID $($existingListener.OwningProcess)."
+        }
+
         $simulatorArguments = @(
             "--Simulator:Endpoint=$Endpoint",
             "--Simulator:Seed=$Seed",

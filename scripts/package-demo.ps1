@@ -79,6 +79,56 @@ function Invoke-DotNetPublish {
     }
 }
 
+function Assert-LauncherEncoding {
+    param([Parameter(Mandatory)][string]$Root)
+
+    $launcherScript = Join-Path $Root "Run-LayupPulse.ps1"
+    $launcherCommand = Join-Path $Root "Run-LayupPulse.cmd"
+    $scriptBytes = [System.IO.File]::ReadAllBytes($launcherScript)
+    if ($scriptBytes.Length -lt 3 -or
+        $scriptBytes[0] -ne 0xEF -or
+        $scriptBytes[1] -ne 0xBB -or
+        $scriptBytes[2] -ne 0xBF) {
+        throw "Le lanceur PowerShell packagé doit être encodé en UTF-8 avec BOM pour Windows PowerShell 5.1."
+    }
+
+    $commandText = [System.IO.File]::ReadAllText($launcherCommand)
+    if (-not $commandText.Contains("chcp 65001")) {
+        throw "Le lanceur CMD packagé ne configure pas la page de codes UTF-8."
+    }
+}
+
+function Assert-ArchiveLauncherEncoding {
+    param([Parameter(Mandatory)][string]$Archive)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($Archive)
+    try {
+        $entry = $zip.Entries |
+            Where-Object { $_.FullName -match '(^|/)Run-LayupPulse\.ps1$' } |
+            Select-Object -First 1
+        if ($null -eq $entry) {
+            throw "Le lanceur PowerShell est absent de l’archive finale."
+        }
+
+        $stream = $entry.Open()
+        try {
+            $prefix = New-Object byte[] 3
+            $read = $stream.Read($prefix, 0, $prefix.Length)
+            if ($read -ne 3 -or $prefix[0] -ne 0xEF -or
+                $prefix[1] -ne 0xBB -or $prefix[2] -ne 0xBF) {
+                throw "Le lanceur PowerShell de l’archive finale n’est pas en UTF-8 avec BOM."
+            }
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot "LayupPulse.sln") -PathType Leaf)) {
     throw "La racine du dépôt LayupPulse n'a pas pu être localisée depuis $PSScriptRoot."
 }
@@ -133,6 +183,8 @@ Copy-Item -LiteralPath (Join-Path $repositoryRoot "LICENSE") -Destination (Join-
 Copy-Item -LiteralPath (Join-Path $repositoryRoot "THIRD-PARTY-NOTICES.md") `
     -Destination (Join-Path $packageRoot "THIRD-PARTY-NOTICES.txt")
 
+Assert-LauncherEncoding -Root $packageRoot
+
 $forbiddenFiles = @(
     Get-ChildItem -LiteralPath $packageRoot -Recurse -File | Where-Object {
         $_.Extension -in '.cs', '.csproj', '.sln', '.pdb', '.db', '.sqlite', '.sqlite3', '.log' -or
@@ -170,6 +222,7 @@ else {
 }
 
 Compress-Archive -LiteralPath $packageRoot -DestinationPath $archivePath -CompressionLevel Optimal
+Assert-ArchiveLauncherEncoding -Archive $archivePath
 
 $archive = Get-Item -LiteralPath $archivePath
 Write-Host "Package : $packageRoot"

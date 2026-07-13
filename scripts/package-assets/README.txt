@@ -1,44 +1,70 @@
-LayupPulse Windows x64 demo
-==========================
+LayupPulse — démonstrateur Windows x64
+======================================
 
-Requirements
-------------
+Prérequis
+---------
 
-- Windows 10 or Windows 11, x64.
-- Local TCP port 5057 must be available.
-- No .NET runtime installation is required: this package is self-contained.
+- Windows 10 ou Windows 11, x64.
+- Le point d’écoute TCP local 127.0.0.1:5057 doit être disponible.
+- Aucun runtime .NET n’est requis : ce package est autonome.
 
-Launch
-------
+Lancement
+---------
 
-1. Extract the complete ZIP archive to a writable local folder.
-2. Double-click Run-LayupPulse.cmd.
-3. In LayupPulse, select Connect, load Wing Panel Demo, and select Start.
-4. Close the LayupPulse window when finished. The launcher then stops the simulator.
+1. Extrayez toute l’archive ZIP dans un dossier local accessible en écriture.
+2. Double-cliquez sur Run-LayupPulse.cmd.
+3. Dans LayupPulse, sélectionnez Connecter, chargez Wing Panel Demo, puis
+   sélectionnez Démarrer.
+4. Fermez la fenêtre LayupPulse lorsque vous avez terminé. Le lanceur arrête
+   alors uniquement le simulateur qu’il a lui-même démarré.
 
-The launcher reports both process IDs and the local gRPC endpoint. If Windows
-SmartScreen is shown for this unsigned portfolio build, review the publisher
-information and run it only if you obtained the archive from the expected
-LayupPulse GitHub repository.
+Le lanceur empêche deux orchestrations simultanées. Il s’arrête avec un message
+clair si LayupPulse est déjà ouvert, si un autre simulateur LayupPulse écoute
+déjà ou si le point d’écoute local appartient à un processus sans rapport.
 
-Local history
--------------
+Avertissement « Éditeur inconnu »
+---------------------------------
 
-Run summaries, alarms, and one-second telemetry aggregates are stored under
-%LOCALAPPDATA%\LayupPulse\layuppulse.db and remain available after a desktop
-restart. Raw 20 Hz samples are not stored. This local history is for software
-demonstration only and is not a validated industrial traceability record.
+Ce package de portfolio n’est pas signé numériquement. Windows peut donc
+afficher « Éditeur inconnu » ou un avertissement Microsoft Defender SmartScreen.
+Ce comportement est attendu et aucune protection Windows n’est contournée.
 
-Safety disclaimer
------------------
+N’exécutez le package que s’il a été téléchargé depuis le dépôt officiel :
+https://github.com/arnaud-wissart-lab/layup-pulse
 
-This project is an independent technical demonstrator. It is not affiliated
-with, endorsed by, or based on proprietary software, machine designs, or
-production data from any industrial equipment manufacturer. It must not be
-used to control real machinery or implement safety functions.
+Pour un ZIP de confiance, avant de l’extraire :
 
-License
+1. Cliquez avec le bouton droit sur LayupPulse-win-x64.zip.
+2. Ouvrez Propriétés.
+3. Dans l’onglet Général, cochez Débloquer, puis sélectionnez Appliquer.
+4. Extrayez ensuite l’archive normalement.
+
+Alternative explicite dans PowerShell, à exécuter uniquement sur le ZIP de
+confiance que vous venez de télécharger :
+
+Unblock-File -LiteralPath .\LayupPulse-win-x64.zip
+
+Le lanceur n’exécute jamais Unblock-File automatiquement.
+
+Historique local
+----------------
+
+Les résumés de cycle, alarmes et agrégats télémétriques d’une seconde sont
+stockés dans %LOCALAPPDATA%\LayupPulse\layuppulse.db. Ils restent disponibles
+après le redémarrage de l’application de bureau. Les échantillons bruts à 20 Hz
+ne sont pas stockés. Cet historique sert uniquement à la démonstration
+logicielle ; il ne constitue pas une traçabilité industrielle validée.
+
+Avertissement de sécurité
+-------------------------
+
+LayupPulse est un démonstrateur technique indépendant. Il n’est ni affilié à
+un constructeur industriel, ni fondé sur des logiciels, conceptions de machine
+ou données de production propriétaires. Il ne doit pas être utilisé pour
+piloter une machine réelle ni pour mettre en œuvre une fonction de sûreté.
+
+Licence
 -------
 
-LayupPulse is distributed under the MIT License. See LICENSE.txt and
-THIRD-PARTY-NOTICES.txt for license information.
+LayupPulse est distribué sous licence MIT. Consultez LICENSE.txt et
+THIRD-PARTY-NOTICES.txt.
