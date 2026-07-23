@@ -37,6 +37,7 @@ public static class ProductionRunReportFlowDocumentFactory
         FlowDocumentEx document = new()
         {
             Title = report.Title,
+            Background = Brushes.White,
             FontFamily = new FontFamily("Segoe UI"),
             FontSize = 11,
             Foreground = PrimaryTextBrush,

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LayupPulse.Application;
+using LayupPulse.Desktop.Reporting;
 using LayupPulse.Domain;
 
 namespace LayupPulse.Desktop;
@@ -13,8 +14,10 @@ public sealed class HistoryViewModel : ObservableObject
     private const int MaximumAggregateCount = 3_600;
 
     private readonly IHistoryQueryService _historyQuery;
+    private readonly IProductionRunReportPresenter _reportPresenter;
     private HistoryStatusFilter _selectedStatusFilter;
     private HistoryRunRowViewModel? _selectedRun;
+    private ProductionRunHistoryDetails? _selectedRunDetails;
     private bool _isLoading;
     private bool _hasRuns;
     private bool _hasSelection;
@@ -22,9 +25,12 @@ public sealed class HistoryViewModel : ObservableObject
     private int _refreshRequestGeneration;
     private int _detailsRequestGeneration;
 
-    public HistoryViewModel(IHistoryQueryService historyQuery)
+    public HistoryViewModel(
+        IHistoryQueryService historyQuery,
+        IProductionRunReportPresenter reportPresenter)
     {
         _historyQuery = historyQuery;
+        _reportPresenter = reportPresenter;
         StatusFilters =
         [
             new HistoryStatusFilter("Tous les états", null),
@@ -40,6 +46,7 @@ public sealed class HistoryViewModel : ObservableObject
         LoadDetailsCommand = new AsyncRelayCommand(
             LoadDetailsAsync,
             AsyncRelayCommandOptions.AllowConcurrentExecutions);
+        ShowReportCommand = new RelayCommand(ShowReport, CanShowReport);
         RefreshCommand.Execute(null);
     }
 
@@ -54,6 +61,8 @@ public sealed class HistoryViewModel : ObservableObject
     public IAsyncRelayCommand RefreshCommand { get; }
 
     public IAsyncRelayCommand LoadDetailsCommand { get; }
+
+    public IRelayCommand ShowReportCommand { get; }
 
     public HistoryStatusFilter SelectedStatusFilter
     {
@@ -76,6 +85,7 @@ public sealed class HistoryViewModel : ObservableObject
             if (SetProperty(ref _selectedRun, value))
             {
                 HasSelection = value is not null;
+                ClearSelectedRunDetails();
                 LoadDetailsCommand.Cancel();
                 LoadDetailsCommand.Execute(null);
             }
@@ -111,6 +121,7 @@ public sealed class HistoryViewModel : ObservableObject
         int generation = Interlocked.Increment(ref _refreshRequestGeneration);
         ProductionRunStatus? status = SelectedStatusFilter.Status;
         Interlocked.Increment(ref _detailsRequestGeneration);
+        ClearSelectedRunDetails();
         LoadDetailsCommand.Cancel();
         IsLoading = true;
         StatusMessage = "Chargement de l’historique local…";
@@ -167,8 +178,7 @@ public sealed class HistoryViewModel : ObservableObject
     {
         int generation = Interlocked.Increment(ref _detailsRequestGeneration);
         HistoryRunRowViewModel? selectedRun = SelectedRun;
-        SelectedRunAlarms.Clear();
-        SelectedRunTelemetry.Clear();
+        ClearSelectedRunDetails();
         if (selectedRun is null)
         {
             return;
@@ -183,11 +193,13 @@ public sealed class HistoryViewModel : ObservableObject
                 cancellationToken);
             if (!IsLatestDetailsRequest(generation)
                 || details is null
+                || details.Run.Id != selectedRun.Id
                 || SelectedRun?.Id != selectedRun.Id)
             {
                 return;
             }
 
+            _selectedRunDetails = details;
             foreach (AlarmHistoryItem alarm in details.Alarms)
             {
                 SelectedRunAlarms.Add(new HistoryAlarmRowViewModel(alarm));
@@ -197,6 +209,8 @@ public sealed class HistoryViewModel : ObservableObject
             {
                 SelectedRunTelemetry.Add(new HistoryTelemetryRowViewModel(aggregate));
             }
+
+            ShowReportCommand.NotifyCanExecuteChanged();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -216,4 +230,27 @@ public sealed class HistoryViewModel : ObservableObject
 
     private bool IsLatestDetailsRequest(int generation) =>
         generation == Volatile.Read(ref _detailsRequestGeneration);
+
+    private bool CanShowReport() =>
+        _selectedRunDetails is not null
+        && SelectedRun?.Id == _selectedRunDetails.Run.Id;
+
+    private void ShowReport()
+    {
+        ProductionRunHistoryDetails? details = _selectedRunDetails;
+        if (details is null || SelectedRun?.Id != details.Run.Id)
+        {
+            return;
+        }
+
+        _reportPresenter.Show(details);
+    }
+
+    private void ClearSelectedRunDetails()
+    {
+        _selectedRunDetails = null;
+        SelectedRunAlarms.Clear();
+        SelectedRunTelemetry.Clear();
+        ShowReportCommand.NotifyCanExecuteChanged();
+    }
 }

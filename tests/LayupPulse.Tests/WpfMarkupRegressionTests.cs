@@ -98,6 +98,94 @@ public sealed class WpfMarkupRegressionTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void HistoryReportButtonIsKeyboardAccessibleAndBoundToTheReportCommand()
+    {
+        string historyPath = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "LayupPulse.Desktop",
+            "Views",
+            "HistoryView.xaml");
+        XDocument history = XDocument.Load(historyPath);
+        XElement reportButton = Assert.Single(
+            history.Descendants(Presentation + "Button"),
+            element => (string?)element.Attribute(Automation + "AutomationProperties.AutomationId") ==
+                "HistoryShowReportButton");
+
+        Assert.Equal("{Binding ShowReportCommand}", (string?)reportButton.Attribute("Command"));
+        Assert.Contains("_", (string?)reportButton.Attribute("Content"), StringComparison.Ordinal);
+        Assert.Equal(
+            "Afficher le rapport du cycle sélectionné",
+            (string?)reportButton.Attribute(Automation + "AutomationProperties.Name"));
+        Assert.False(string.IsNullOrWhiteSpace(
+            (string?)reportButton.Attribute(Automation + "AutomationProperties.HelpText")));
+        Assert.False(string.IsNullOrWhiteSpace((string?)reportButton.Attribute("ToolTip")));
+        Assert.Contains(
+            reportButton.Parent!.Elements(Presentation + "Button"),
+            button => (string?)button.Attribute("Content") == "Actualiser");
+    }
+
+    [Fact]
+    public void ReportPreviewUsesAFlowDocumentReaderAndAccessibleCommands()
+    {
+        string previewPath = Path.Combine(
+            FindRepositoryRoot(),
+            "src",
+            "LayupPulse.Desktop",
+            "Reporting",
+            "ProductionRunReportWindow.xaml");
+        XDocument preview = XDocument.Load(previewPath);
+
+        Assert.Empty(preview.Descendants(Presentation + "DataGrid"));
+        XElement reader = Assert.Single(preview.Descendants(Presentation + "FlowDocumentReader"));
+        Assert.Equal(
+            "Contenu du rapport de cycle",
+            (string?)reader.Attribute(Automation + "AutomationProperties.Name"));
+        Assert.False(string.IsNullOrWhiteSpace(
+            (string?)reader.Attribute(Automation + "AutomationProperties.HelpText")));
+
+        XElement[] buttons = preview.Descendants(Presentation + "Button").ToArray();
+        Assert.Equal(3, buttons.Length);
+        Assert.Collection(
+            buttons,
+            button => AssertAccessibleReportButton(
+                button,
+                "ProductionRunReportPrintButton",
+                "Imprimer le rapport de cycle"),
+            button => AssertAccessibleReportButton(
+                button,
+                "ProductionRunReportSaveXpsButton",
+                "Enregistrer le rapport de cycle en XPS"),
+            button => AssertAccessibleReportButton(
+                button,
+                "ProductionRunReportCloseButton",
+                "Fermer l’aperçu du rapport"));
+        Assert.DoesNotContain(
+            buttons,
+            button => string.Equals(
+                (string?)button.Attribute("Content"),
+                "Export PDF",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void AssertAccessibleReportButton(
+        XElement button,
+        string automationId,
+        string automationName)
+    {
+        Assert.Equal(
+            automationId,
+            (string?)button.Attribute(Automation + "AutomationProperties.AutomationId"));
+        Assert.Equal(
+            automationName,
+            (string?)button.Attribute(Automation + "AutomationProperties.Name"));
+        Assert.Contains("_", (string?)button.Attribute("Content"), StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(
+            (string?)button.Attribute(Automation + "AutomationProperties.HelpText")));
+        Assert.False(string.IsNullOrWhiteSpace((string?)button.Attribute("ToolTip")));
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using LayupPulse.Application;
+using LayupPulse.Desktop.Reporting;
 using LayupPulse.Infrastructure;
 using LayupPulse.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
@@ -118,6 +119,9 @@ public partial class App : System.Windows.Application
         builder.Services.AddSingleton<OverviewViewModel>();
         builder.Services.AddSingleton<DiagnosticsViewModel>();
         builder.Services.AddSingleton<AlarmsViewModel>();
+        builder.Services.AddSingleton<IProductionRunReportDialogs, WindowsProductionRunReportDialogs>();
+        builder.Services.AddSingleton<ProductionRunReportOutputService>();
+        builder.Services.AddSingleton<IProductionRunReportPresenter, ProductionRunReportPresenter>();
         builder.Services.AddSingleton<HistoryViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
