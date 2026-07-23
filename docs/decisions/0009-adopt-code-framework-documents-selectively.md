@@ -2,7 +2,8 @@
 
 ## Statut
 
-Accepté pour la fondation du rapport de cycle de production.
+Accepté pour le rapport de cycle dont le socle est publié en 0.3.0 et dont
+l’intégration à **Historique** est livrée en 0.4.0.
 
 ## Contexte
 
@@ -31,11 +32,16 @@ L’intégration est confinée au dossier `Reporting` :
   borne les alarmes détaillées à 100 ;
 - une factory WPF transforme le modèle en `FlowDocumentEx` et utilise son
   en-tête, son pied de page, sa numérotation et son filigrane.
+- un presenter construit le document et ouvre une fenêtre d’aperçu appartenant
+  à la fenêtre principale ;
+- un service de sortie encapsule `PrintHelper`, l’impression WPF et
+  l’enregistrement XPS.
 
 `CommunityToolkit.Mvvm` reste l’unique socle MVVM de LayupPulse. Aucun shell
 MVC/MVVM, thème, mécanisme de sécurité, `ViewAction` ou système de navigation de
-CODE Framework n’est adopté. Le shell, le thème, la navigation et les
-ViewModels existants ne changent pas.
+CODE Framework n’est adopté. Le shell, le thème et la navigation existants ne
+changent pas. `HistoryViewModel` dépend uniquement d’une abstraction de
+présentation et ne connaît ni `Window`, ni `PrintDialog`, ni `FlowDocument`.
 
 Le périmètre de sortie couvre l’impression WPF et l’export XPS fourni par le
 module Documents. LayupPulse ne promet aucun export PDF natif. Une éventuelle
@@ -53,5 +59,5 @@ contraintes de fidélité, de licence et de distribution.
 - Le paquet WPF principal est présent dans le graphe d’exécution uniquement
   parce que le module Documents l’exige ; il ne devient pas une architecture
   applicative.
-- La création d’une fenêtre d’aperçu et le raccordement à `HistoryView` restent
-  hors du périmètre de cette décision.
+- `HistoryView` expose la commande de rapport, mais tout usage direct de CODE
+  Framework reste dans `LayupPulse.Desktop/Reporting` et sa fenêtre d’aperçu.

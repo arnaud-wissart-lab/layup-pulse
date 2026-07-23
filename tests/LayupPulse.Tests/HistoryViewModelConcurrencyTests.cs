@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using LayupPulse.Application;
 using LayupPulse.Desktop;
+using LayupPulse.Desktop.Reporting;
 using LayupPulse.Domain;
 using Xunit;
 
@@ -15,7 +16,7 @@ public sealed class HistoryViewModelConcurrencyTests
     public async Task OlderFilterRequestCannotEndLoadingWhileLatestRequestIsActive()
     {
         DelayedHistoryQuery query = new();
-        HistoryViewModel viewModel = new(query);
+        HistoryViewModel viewModel = new(query, new RecordingReportPresenter());
         await CompleteInitialRefreshAsync(query, viewModel, CreateRun("Initial", ProductionRunStatus.Completed));
 
         viewModel.SelectedStatusFilter = GetFilter(viewModel, ProductionRunStatus.Completed);
@@ -40,7 +41,7 @@ public sealed class HistoryViewModelConcurrencyTests
     public async Task OlderFilterRequestCannotReplaceLatestRunsOrSelection()
     {
         DelayedHistoryQuery query = new();
-        HistoryViewModel viewModel = new(query);
+        HistoryViewModel viewModel = new(query, new RecordingReportPresenter());
         await CompleteInitialRefreshAsync(query, viewModel, CreateRun("Initial", ProductionRunStatus.Completed));
 
         viewModel.SelectedStatusFilter = GetFilter(viewModel, ProductionRunStatus.Completed);
@@ -66,7 +67,8 @@ public sealed class HistoryViewModelConcurrencyTests
     public async Task OlderSelectionRequestCannotReplaceLatestDetails()
     {
         DelayedHistoryQuery query = new();
-        HistoryViewModel viewModel = new(query);
+        RecordingReportPresenter presenter = new();
+        HistoryViewModel viewModel = new(query, presenter);
         ProductionRunHistoryItem first = CreateRun("Premier", ProductionRunStatus.Completed);
         ProductionRunHistoryItem second = CreateRun("Second", ProductionRunStatus.Faulted);
         RunRequest initial = await query.NextRunRequestAsync();
@@ -78,23 +80,103 @@ public sealed class HistoryViewModelConcurrencyTests
         await WaitUntilAsync(
             () => viewModel.SelectedRunAlarms.Any(alarm => alarm.Message == "initial"),
             TimeSpan.FromSeconds(2));
+        Assert.True(viewModel.ShowReportCommand.CanExecute(null));
 
         viewModel.SelectedRun = viewModel.Runs.Single(run => run.Id == second.Id);
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
         DetailRequest older = await query.NextDetailRequestAsync();
         viewModel.SelectedRun = viewModel.Runs.Single(run => run.Id == first.Id);
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
         DetailRequest latest = await query.NextDetailRequestAsync();
 
-        latest.Complete(CreateDetails(first, "récent"));
+        ProductionRunHistoryDetails latestDetails = CreateDetails(first, "récent");
+        latest.Complete(latestDetails);
         await latest.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await WaitUntilAsync(
-            () => viewModel.SelectedRunAlarms.Any(alarm => alarm.Message == "récent"),
+            () => viewModel.ShowReportCommand.CanExecute(null),
             TimeSpan.FromSeconds(2));
-        older.Complete(CreateDetails(second, "ancien"));
+        Assert.False(presenter.WasShown);
+        ProductionRunHistoryDetails obsoleteDetails = CreateDetails(second, "ancien");
+        older.Complete(obsoleteDetails);
         await older.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(first.Id, viewModel.SelectedRun?.Id);
         Assert.Equal("récent", Assert.Single(viewModel.SelectedRunAlarms).Message);
         Assert.Equal(20, Assert.Single(viewModel.SelectedRunTelemetry).SampleCount);
+        Assert.True(viewModel.ShowReportCommand.CanExecute(null));
+
+        viewModel.ShowReportCommand.Execute(null);
+
+        Assert.Same(latestDetails, presenter.ShownDetails);
+        Assert.NotSame(obsoleteDetails, presenter.ShownDetails);
+    }
+
+    [Fact]
+    public async Task ShowReportCommandIsDisabledWithoutSelectionAndWhileDetailsAreLoading()
+    {
+        DelayedHistoryQuery query = new();
+        HistoryViewModel viewModel = new(query, new RecordingReportPresenter());
+
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
+
+        ProductionRunHistoryItem run = CreateRun("Cycle", ProductionRunStatus.Completed);
+        RunRequest initial = await query.NextRunRequestAsync();
+        initial.Complete([run]);
+        await initial.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        DetailRequest detailsRequest = await query.NextDetailRequestAsync();
+
+        Assert.Equal(run.Id, viewModel.SelectedRun?.Id);
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
+
+        detailsRequest.Complete(null);
+        await detailsRequest.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task ShowReportCommandUsesTheCompleteDetailsForTheSelectedRun()
+    {
+        DelayedHistoryQuery query = new();
+        RecordingReportPresenter presenter = new();
+        HistoryViewModel viewModel = new(query, presenter);
+        ProductionRunHistoryItem run = CreateRun("Cycle", ProductionRunStatus.Completed);
+        RunRequest initial = await query.NextRunRequestAsync();
+        initial.Complete([run]);
+        await initial.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        DetailRequest detailsRequest = await query.NextDetailRequestAsync();
+        ProductionRunHistoryDetails expectedDetails = CreateDetails(run, "attendue");
+
+        detailsRequest.Complete(expectedDetails);
+        await detailsRequest.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(
+            () => viewModel.ShowReportCommand.CanExecute(null),
+            TimeSpan.FromSeconds(2));
+
+        viewModel.ShowReportCommand.Execute(null);
+
+        Assert.Same(expectedDetails, presenter.ShownDetails);
+    }
+
+    [Fact]
+    public async Task ShowReportCommandStaysDisabledWhenDetailsDoNotMatchTheSelectedRun()
+    {
+        DelayedHistoryQuery query = new();
+        RecordingReportPresenter presenter = new();
+        HistoryViewModel viewModel = new(query, presenter);
+        ProductionRunHistoryItem selectedRun = CreateRun("Cycle sélectionné", ProductionRunStatus.Completed);
+        ProductionRunHistoryItem differentRun = CreateRun("Autre cycle", ProductionRunStatus.Faulted);
+        RunRequest initial = await query.NextRunRequestAsync();
+        initial.Complete([selectedRun]);
+        await initial.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        DetailRequest detailsRequest = await query.NextDetailRequestAsync();
+
+        detailsRequest.Complete(CreateDetails(differentRun, "discordante"));
+        await detailsRequest.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
+        viewModel.ShowReportCommand.Execute(null);
+        Assert.False(presenter.WasShown);
+        Assert.Empty(viewModel.SelectedRunAlarms);
+        Assert.Empty(viewModel.SelectedRunTelemetry);
     }
 
     private static async Task CompleteInitialRefreshAsync(
@@ -243,6 +325,18 @@ public sealed class HistoryViewModelConcurrencyTests
         public TaskCompletionSource Finished { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public void Complete(ProductionRunHistoryDetails details) => Result.TrySetResult(details);
+        public void Complete(ProductionRunHistoryDetails? details) => Result.TrySetResult(details);
+    }
+
+    private sealed class RecordingReportPresenter : IProductionRunReportPresenter
+    {
+        public ProductionRunHistoryDetails? ShownDetails { get; private set; }
+
+        public bool WasShown => ShownDetails is not null;
+
+        public void Show(ProductionRunHistoryDetails details)
+        {
+            ShownDetails = details;
+        }
     }
 }

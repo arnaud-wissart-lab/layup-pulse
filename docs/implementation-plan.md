@@ -57,6 +57,8 @@ P0 produces a coherent local demonstration on Windows with a separate simulator 
 
 P1 improves presentation and distribution without weakening the P0 boundaries.
 
+- Livré en `0.4.0` : premier rapport borné du cycle sélectionné, avec aperçu
+  WPF, pagination, impression Windows et export XPS depuis **Historique**.
 - Refine the dark industrial design system, spacing, typography, iconography, states, and transitions.
 - Upgrade charts with clear units, thresholds, cursor inspection, bounded time windows, and export-ready snapshots.
 - Create a polished but fictional 3D cell visualization with measured frame time and a fallback reduced-motion mode.
@@ -73,9 +75,12 @@ P2 explores extensions after the demonstrator is complete and measured.
 
 - Add an optional OPC UA adapter behind `IMachineGateway`; keep it disabled by default and simulator-focused.
 - Define capability discovery so adapters expose supported commands and telemetry without UI assumptions.
-- Add advanced process analytics such as trend envelopes, cycle comparison, anomaly scoring, and health-score explanation.
+- Add advanced process analytics such as trend envelopes, multi-run cycle
+  comparison, anomaly scoring, and health-score explanation. Les comparaisons
+  multi-cycles de rapports restent à réaliser.
 - Evaluate longer-term storage and data export only with explicit retention and privacy requirements.
 - Add replay of recorded simulated runs for deterministic diagnostics and UI regression tests.
-- Explore recipe comparison and production-summary reporting without expanding into CAD processing or a complete MES.
+- Explore recipe comparison and comparative production-summary reporting
+  without expanding into CAD processing or a complete MES.
 
 Any OPC UA work remains a software integration demonstration. It does not make LayupPulse suitable for real equipment or safety functions.

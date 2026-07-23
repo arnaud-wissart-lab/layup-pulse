@@ -1,5 +1,6 @@
 using LayupPulse.Application;
 using LayupPulse.Desktop;
+using LayupPulse.Desktop.Reporting;
 using LayupPulse.Domain;
 using Xunit;
 
@@ -23,7 +24,9 @@ public sealed class ShellViewModelTests
             sessionService,
             new DemoModeOptions());
         AlarmsViewModel alarms = new(sessionService);
-        HistoryViewModel history = new(new TestHistoryQueryService());
+        HistoryViewModel history = new(
+            new TestHistoryQueryService(),
+            new TestProductionRunReportPresenter());
         using ShellViewModel shell = new(
             sessionService,
             dispatcher,
@@ -125,5 +128,12 @@ public sealed class ShellViewModelTests
             int maximumAggregateCount,
             CancellationToken cancellationToken) =>
             Task.FromResult<ProductionRunHistoryDetails?>(null);
+    }
+
+    private sealed class TestProductionRunReportPresenter : IProductionRunReportPresenter
+    {
+        public void Show(ProductionRunHistoryDetails details)
+        {
+        }
     }
 }

@@ -125,6 +125,20 @@ The History page contains:
 
 Empty, loading, failed, and no-result states are explicit. Database work is asynchronous through application services; no ViewModel references a `DbContext`.
 
+Le premier rapport de cycle est accessible à proximité de l’action
+**Actualiser**. Sa commande reste désactivée sans sélection et pendant le
+chargement ; elle ne devient disponible qu’après réception des détails complets
+correspondant encore au cycle sélectionné. Une réponse asynchrone périmée ou
+discordante ne doit jamais réactiver la commande.
+
+L’aperçu est une fenêtre WPF modale appartenant à la fenêtre principale. Il
+utilise un `FlowDocumentReader`, des tableaux de document plutôt qu’un
+`DataGrid`, une pagination explicite et trois actions accessibles au clavier :
+**Imprimer**, **Enregistrer en XPS** et **Fermer**. Le document, son filigrane
+et l’arbre d’automatisation indiquent qu’il s’agit de données simulées. Aucun
+export PDF natif n’est proposé ; l’utilisateur peut choisir Microsoft Print to
+PDF ou une autre imprimante Windows depuis le dialogue d’impression.
+
 ### Diagnostics
 
 The Diagnostics page contains:
@@ -150,6 +164,9 @@ Fault injection requires an explicit profile selection and clear active-state ba
 - Provide text summaries for charts and the machine visualization.
 - Avoid rapid flashing and offer reduced motion for nonessential transitions.
 - Announce state changes, command failures, and newly raised critical alarms through an accessible live region without flooding announcements at telemetry frequency.
+- Conserver l’aperçu du rapport redimensionnable et entièrement utilisable dans
+  la zone de travail d’un affichage 1280 × 720, y compris aux mises à l’échelle
+  Windows prévues de 125 %, 150 % et 200 %.
 
 ## 6. Responsiveness and bounded updates
 

@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
 using CODE.Framework.Wpf.Documents;
 using LayupPulse.Application;
 using LayupPulse.Desktop.Reporting;
@@ -43,6 +44,8 @@ public sealed class ProductionRunReportFlowDocumentFactoryTests
             FlowDocumentEx document = ProductionRunReportFlowDocumentFactory.Create(report);
 
             Assert.Equal(report.Title, document.Title);
+            Assert.Equal(Brushes.White, document.Background);
+            Assert.True(document.Foreground.IsFrozen);
             Assert.IsType<Grid>(document.PageHeader);
             Grid footer = Assert.IsType<Grid>(document.PageFooter);
             TextBlock pagination = Assert.IsType<TextBlock>(footer.Children[1]);

@@ -24,24 +24,25 @@ Avant une présentation, vérifier que le port `5057` est libre, que l’afficha
 | 0:45–1:00 | Ouvrir **Diagnostics** et injecter **Surtempérature**. | La machine passe immédiatement à `Faulted`; l’alarme apparaît après son debounce déterministe. |
 | 1:00–1:15 | Ouvrir **Alarmes** et acquitter l’alarme. | L’alarme devient acquittée mais reste active : la condition n’est pas effacée. |
 | 1:15–1:30 | Revenir dans **Diagnostics**, lever la surtempérature, puis sélectionner **Reset**. | La condition disparaît, l’alarme passe à `Cleared` et la machine revient à `Ready`. |
-| 1:30–1:50 | Ouvrir **Historique**, filtrer sur **En défaut** et sélectionner le run interrompu. | Le résumé, l’alarme et les agrégats télémétriques d’une seconde sont relus depuis SQLite. |
-| 1:50–2:00 | Optionnel : injecter une coupure de communication, puis la lever. | La session affiche la reconnexion et revient à un état connecté sans bloquer l’interface. |
+| 1:30–1:45 | Ouvrir **Historique**, filtrer sur **En défaut** et sélectionner le run interrompu. | Le résumé, l’alarme et les agrégats télémétriques d’une seconde sont relus depuis SQLite. |
+| 1:45–2:00 | Ouvrir **Rapport du cycle** et parcourir ses pages. | L’aperçu affiche l’avertissement sur les données simulées et propose l’impression Windows ou l’export XPS. |
+| Après 2:00 | Optionnel : injecter une coupure de communication, puis la lever. | La session affiche la reconnexion et revient à un état connecté sans bloquer l’interface. |
 
 ## Vérification de la persistance
 
 Après le parcours principal, fermer uniquement Desktop, le relancer, se reconnecter si nécessaire, puis rouvrir **Historique**. Le run précédent doit rester visible depuis `%LOCALAPPDATA%\LayupPulse\layuppulse.db`. Les détails montrent les alarmes et agrégats d’une seconde ; aucun échantillon brut à 20 Hz n’est stocké.
 
 Présenter cette capacité comme un historique local de démonstration.
-L’interface opérateur ne fournit encore aucune commande d’impression ou
-d’export. Le socle documentaire XPS se valide séparément selon le scénario
-technique ci-dessous ; il ne fournit ni export PDF natif, ni authentification,
-ni base serveur, ni garantie de traçabilité industrielle validée.
+L’interface opérateur fournit un aperçu, une impression Windows et un export
+XPS du cycle sélectionné. Elle ne fournit ni export PDF natif, ni
+authentification, ni base serveur, ni garantie de traçabilité industrielle
+validée. Un PDF peut uniquement être produit en sélectionnant une imprimante
+Windows compatible.
 
 ## Validation technique du rapport de cycle
 
-Cette validation couvre la fondation documentaire avant son raccordement à
-`HistoryView`. Elle n’ajoute ni fenêtre d’aperçu ni commande visible dans
-l’application.
+Cette validation couvre la projection, le document et leur raccordement à
+`HistoryView`.
 
 Depuis la racine du dépôt :
 
@@ -56,7 +57,7 @@ dotnet test tests/LayupPulse.Tests/LayupPulse.Tests.csproj `
 
 Résultat attendu :
 
-1. les six tests `ProductionRunReport` réussissent sans test ignoré ;
+1. les tests `ProductionRunReport` réussissent sans test ignoré ;
 2. la projection restitue l’identifiant, la recette, la référence pièce, les
    dates, la durée, l’état final, la progression, les indicateurs, la santé
    minimale et les métadonnées de génération ;
@@ -68,12 +69,15 @@ Résultat attendu :
 6. la factory WPF crée un `FlowDocumentEx` avec avertissement, en-tête, pied de
    page, numérotation et filigrane ;
 7. un fichier XPS temporaire non vide est réellement sérialisé, contrôlé puis
-   supprimé par le test.
+   supprimé par le test ;
+8. la commande reste désactivée sans détails complets et ignore les réponses
+   périmées ou discordantes ;
+9. les contrôles de l’aperçu possèdent des noms d’automatisation, des
+   infobulles et des touches d’accès.
 
-Ce scénario valide la structure, la pagination et la sérialisation XPS, mais ne
-permet pas encore une inspection visuelle depuis l’application. Cette
-inspection deviendra pertinente lorsque `HistoryView` exposera une commande
-d’aperçu ou d’export dans un incrément distinct.
+L’inspection visuelle complémentaire doit vérifier l’aperçu, la pagination,
+l’annulation de l’impression, l’export puis l’ouverture du XPS et les mises à
+l’échelle Windows réellement disponibles sur le poste de validation.
 
 ## Coupure de communication
 

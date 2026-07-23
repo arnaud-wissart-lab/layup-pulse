@@ -1,0 +1,87 @@
+<Window x:Class="LayupPulse.Desktop.Reporting.ProductionRunReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
+        Title="Aperçu du rapport de cycle simulé"
+        Width="1000"
+        Height="620"
+        MinWidth="640"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}"
+        automation:AutomationProperties.AutomationId="ProductionRunReportPreviewWindow"
+        automation:AutomationProperties.Name="Aperçu du rapport de cycle simulé sélectionné">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <Border Padding="18,14,10,6"
+            Background="{StaticResource SidebarBackgroundBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="0,0,0,1">
+      <DockPanel LastChildFill="True">
+        <WrapPanel DockPanel.Dock="Right"
+                   Margin="20,0,0,0"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center">
+          <Button x:Name="PrintButton"
+                  Click="OnPrintClicked"
+                  Content="_Imprimer"
+                  Style="{StaticResource PrimaryButtonStyle}"
+                  ToolTip="Ouvre le dialogue d’impression Windows. Microsoft Print to PDF peut y être sélectionné."
+                  automation:AutomationProperties.AutomationId="ProductionRunReportPrintButton"
+                  automation:AutomationProperties.HelpText="Ouvre le dialogue d’impression Windows pour choisir une imprimante."
+                  automation:AutomationProperties.Name="Imprimer le rapport de cycle" />
+          <Button x:Name="SaveAsXpsButton"
+                  Click="OnSaveAsXpsClicked"
+                  Content="_Enregistrer en XPS"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  ToolTip="Enregistre une copie paginée du rapport au format XPS."
+                  automation:AutomationProperties.AutomationId="ProductionRunReportSaveXpsButton"
+                  automation:AutomationProperties.HelpText="Ouvre un dialogue pour choisir le fichier XPS de destination."
+                  automation:AutomationProperties.Name="Enregistrer le rapport de cycle en XPS" />
+          <Button x:Name="CloseButton"
+                  Content="_Fermer"
+                  IsCancel="True"
+                  Style="{StaticResource SecondaryButtonStyle}"
+                  ToolTip="Ferme l’aperçu et revient à l’historique."
+                  automation:AutomationProperties.AutomationId="ProductionRunReportCloseButton"
+                  automation:AutomationProperties.HelpText="Ferme la fenêtre d’aperçu du rapport."
+                  automation:AutomationProperties.Name="Fermer l’aperçu du rapport" />
+        </WrapPanel>
+
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock FontSize="19"
+                     FontWeight="SemiBold"
+                     Foreground="{StaticResource PrimaryTextBrush}"
+                     Text="Rapport du cycle" />
+          <TextBlock Margin="0,3,0,0"
+                     Foreground="{StaticResource SecondaryTextBrush}"
+                     Text="Aperçu imprimable des données simulées persistées"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Row="1"
+            Margin="16"
+            Background="{StaticResource PanelBackgroundBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1">
+      <FlowDocumentReader x:Name="ReportReader"
+                          Background="{StaticResource PanelRaisedBrush}"
+                          Foreground="{StaticResource PrimaryTextBrush}"
+                          IsFindEnabled="True"
+                          IsPrintEnabled="False"
+                          ViewingMode="Page"
+                          automation:AutomationProperties.AutomationId="ProductionRunReportDocumentReader"
+                          automation:AutomationProperties.HelpText="Utilisez les commandes du lecteur pour parcourir et zoomer dans le rapport paginé."
+                          automation:AutomationProperties.Name="Contenu du rapport de cycle" />
+    </Border>
+  </Grid>
+</Window>

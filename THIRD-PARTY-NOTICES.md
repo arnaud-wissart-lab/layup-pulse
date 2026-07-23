@@ -6,8 +6,8 @@ LayupPulse est distribué sous licence MIT. Les dépendances directes conservent
 
 | Package | Version | Licence | Usage principal |
 | --- | --- | --- | --- |
-| CODE.Framework.Wpf | 6.0.0 | MIT | Socle WPF transitif requis par le module Documents ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
-| CODE.Framework.Wpf.Documents | 6.0.0 | MIT | Documents imprimables et export XPS ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
+| CODE.Framework.Wpf | 6.0.0 | MIT | Socle WPF transitif requis par le module Documents, sans usage direct dans LayupPulse ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
+| CODE.Framework.Wpf.Documents | 6.0.0 | MIT | Aperçu, impression WPF et export XPS des rapports de cycle ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | ViewModels et commandes WPF |
 | Google.Protobuf | 3.35.1 | BSD-3-Clause | Sérialisation des contrats |
 | Grpc.AspNetCore | 2.80.0 | Apache-2.0 | Serveur gRPC du simulateur |

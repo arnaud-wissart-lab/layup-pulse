@@ -97,6 +97,36 @@ public sealed class ProjectDependencyTests
         }
     }
 
+    [Fact]
+    public void CodeFrameworkProductionUsagesRemainConfinedToDesktopReporting()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        string sourceRoot = Path.Combine(repositoryRoot, "src");
+        string reportingRoot = Path.Combine(
+            sourceRoot,
+            "LayupPulse.Desktop",
+            "Reporting") + Path.DirectorySeparatorChar;
+        string[] productionFiles = Directory
+            .EnumerateFiles(sourceRoot, "*.*", SearchOption.AllDirectories)
+            .Where(path => Path.GetExtension(path) is ".cs" or ".xaml")
+            .Where(path => !path.Contains(
+                $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
+                StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.Contains(
+                $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
+                StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.StartsWith(reportingRoot, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (string productionFile in productionFiles)
+        {
+            Assert.DoesNotContain(
+                "CODE.Framework",
+                File.ReadAllText(productionFile),
+                StringComparison.Ordinal);
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

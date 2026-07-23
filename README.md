@@ -34,7 +34,9 @@ Le script vérifie la version du SDK .NET 10 fixée par le dépôt, ne compile q
 6. Dans **Alarmes**, acquittez l’alarme ; cet acquittement ne fait pas disparaître la condition simulée.
 7. Revenez dans **Diagnostics**, levez le défaut, puis sélectionnez **Réinitialiser**.
 8. Ouvrez **Historique**, filtrez les cycles persistés, puis examinez les alarmes et les agrégats télémétriques d’une seconde du cycle sélectionné.
-9. Ne présentez la perte et le rétablissement de la communication qu’après avoir répété ce scénario sur la machine utilisée pour la démonstration.
+9. Sélectionnez **Rapport du cycle** pour parcourir l’aperçu paginé, imprimer
+   par le dialogue Windows ou enregistrer un fichier XPS.
+10. Ne présentez la perte et le rétablissement de la communication qu’après avoir répété ce scénario sur la machine utilisée pour la démonstration.
 
 Les notes chronométrées et les consignes de reprise sont disponibles dans [le scénario de démonstration](docs/demo-scenario.md).
 
@@ -55,8 +57,8 @@ Ce projet n’est ni un contrôleur de machine, ni un système de sécurité, ni
 - Cycle de vie des alarmes couvrant le déclenchement, l’acquittement et la fin de condition, avec historique en mémoire borné.
 - Historique SQLite local et durable pour les résumés de cycles, les alarmes et les agrégats UTC d’une seconde.
 - Vue **Historique** asynchrone et bornée, avec filtre sur l’état final et détails du cycle sélectionné.
-- Fondation de rapport de cycle imprimable et exportable en XPS, encapsulée
-  dans Desktop et non encore raccordée à la vue **Historique**.
+- Rapport du cycle sélectionné accessible depuis **Historique**, avec aperçu
+  WPF paginé, impression Windows et export XPS.
 - Tendances ScottPlot limitées par fenêtre temporelle, fréquence de rafraîchissement et nombre de points.
 - Visualisation 3D HelixToolkit/WPF alimentée par la télémétrie regroupée.
 - Tests unitaires, d’architecture, de transport, d’annulation et d’intégration ciblés.
@@ -220,7 +222,7 @@ dotnet test LayupPulse.sln -c Release --no-build
 git diff --check
 ```
 
-La suite couvre les transitions du domaine, la validation des recettes, la simulation déterministe, le comportement des défauts, les règles d’alarme, la télémétrie bornée, la sérialisation des reconnexions, les mappings gRPC et l’intégration des processus, l’annulation, le retour des commandes dans les ViewModels, le sens des dépendances entre projets, les migrations SQLite réelles, la persistance après réouverture de la base avec un nouveau contexte ainsi que la projection, le bornage et la sérialisation XPS du rapport de cycle.
+La suite couvre les transitions du domaine, la validation des recettes, la simulation déterministe, le comportement des défauts, les règles d’alarme, la télémétrie bornée, la sérialisation des reconnexions, les mappings gRPC et l’intégration des processus, l’annulation, le retour des commandes dans les ViewModels, le sens des dépendances entre projets, les migrations SQLite réelles, la persistance après réouverture de la base avec un nouveau contexte ainsi que la projection, le bornage, la concurrence de sélection et la sérialisation XPS du rapport de cycle.
 
 ## Création du paquet
 
@@ -268,7 +270,11 @@ Les décisions structurantes sont consignées dans [les comptes rendus de décis
 
 ## Limites connues
 
-- L’historique se limite volontairement aux cycles locaux récents et aux détails du cycle sélectionné. Le socle de rapport prend en charge l’impression WPF et l’export XPS, mais aucune commande n’est encore exposée dans l’interface et aucun export PDF natif n’est promis.
+- L’historique et le rapport se limitent volontairement aux cycles locaux
+  récents et à un seul cycle sélectionné. Les comparaisons multi-cycles restent
+  à réaliser. L’export natif est au format XPS ; un PDF peut uniquement être
+  produit en choisissant une imprimante Windows compatible, telle que
+  Microsoft Print to PDF.
 - Le point d’accès gRPC local utilise HTTP/2 sans chiffrement et ne dispose ni d’authentification ni de durcissement pour un déploiement distant.
 - Le paquet Windows n’est pas signé et peut déclencher un avertissement SmartScreen.
 - Les graphiques restaurent actuellement une ressource WPF transitive que NuGet signale comme ciblant .NET Framework ; les tests de démarrage réduisent le risque sans supprimer cette dépendance.

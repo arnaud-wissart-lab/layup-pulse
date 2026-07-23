@@ -4,6 +4,31 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+## [0.4.0] — 2026-07-23
+
+### Ajouté
+
+- Aperçu WPF accessible depuis **Historique**, avec en-tête, pied de page,
+  pagination, filigrane et avertissement explicite sur les données simulées.
+- Impression par le dialogue Windows et export XPS natif ; la sortie PDF reste
+  disponible uniquement par une imprimante Windows telle que Microsoft Print
+  to PDF.
+
+### Corrigé
+
+- Protection de la commande de rapport contre les détails de cycle périmés ou
+  discordants lors des changements rapides de sélection.
+- Gel des pinceaux partagés du document afin d’éviter une affinité de thread
+  WPF et une consommation mémoire inutiles.
+- Ajustement de la fenêtre d’aperçu pour la zone utile d’un affichage
+  1280 × 720.
+
+### Documentation
+
+- Décision d’architecture, notices tierces et scénario de validation technique
+  du rapport, avec limites explicites sur les données simulées, le format XPS
+  et l’absence d’export PDF natif.
+
 ## [0.3.0] — 2026-07-23
 
 ### Ajouté
@@ -87,7 +112,8 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...v0.2.1

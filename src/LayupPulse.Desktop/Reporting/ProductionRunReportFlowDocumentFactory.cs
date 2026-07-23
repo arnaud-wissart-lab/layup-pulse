@@ -15,20 +15,13 @@ namespace LayupPulse.Desktop.Reporting;
 public static class ProductionRunReportFlowDocumentFactory
 {
     private static readonly CultureInfo ReportCulture = CultureInfo.GetCultureInfo("fr-FR");
-    private static readonly Brush PrimaryTextBrush =
-        new SolidColorBrush(Color.FromRgb(24, 36, 48));
-    private static readonly Brush SecondaryTextBrush =
-        new SolidColorBrush(Color.FromRgb(71, 85, 99));
-    private static readonly Brush AccentBrush =
-        new SolidColorBrush(Color.FromRgb(3, 105, 161));
-    private static readonly Brush BorderBrush =
-        new SolidColorBrush(Color.FromRgb(203, 213, 225));
-    private static readonly Brush WarningBrush =
-        new SolidColorBrush(Color.FromRgb(185, 28, 28));
-    private static readonly Brush WarningBackgroundBrush =
-        new SolidColorBrush(Color.FromRgb(254, 226, 226));
-    private static readonly Brush TableHeaderBrush =
-        new SolidColorBrush(Color.FromRgb(226, 232, 240));
+    private static readonly Brush PrimaryTextBrush = CreateFrozenBrush(24, 36, 48);
+    private static readonly Brush SecondaryTextBrush = CreateFrozenBrush(71, 85, 99);
+    private static readonly Brush AccentBrush = CreateFrozenBrush(3, 105, 161);
+    private static readonly Brush BorderBrush = CreateFrozenBrush(203, 213, 225);
+    private static readonly Brush WarningBrush = CreateFrozenBrush(185, 28, 28);
+    private static readonly Brush WarningBackgroundBrush = CreateFrozenBrush(254, 226, 226);
+    private static readonly Brush TableHeaderBrush = CreateFrozenBrush(226, 232, 240);
 
     public static FlowDocumentEx Create(ProductionRunReport report)
     {
@@ -37,6 +30,7 @@ public static class ProductionRunReportFlowDocumentFactory
         FlowDocumentEx document = new()
         {
             Title = report.Title,
+            Background = Brushes.White,
             FontFamily = new FontFamily("Segoe UI"),
             FontSize = 11,
             Foreground = PrimaryTextBrush,
@@ -412,4 +406,11 @@ public static class ProductionRunReportFlowDocumentFactory
         string unit) =>
         $"{range.Minimum.ToString(format, ReportCulture)}–" +
         $"{range.Maximum.ToString(format, ReportCulture)} {unit}";
+
+    private static SolidColorBrush CreateFrozenBrush(byte red, byte green, byte blue)
+    {
+        SolidColorBrush brush = new(Color.FromRgb(red, green, blue));
+        brush.Freeze();
+        return brush;
+    }
 }
