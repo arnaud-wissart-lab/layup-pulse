@@ -1,20 +1,20 @@
-# Préparation à la publication 0.4.0
+# Publication 0.4.0
 
 ## Statut
 
-- Date de la passe locale : 23 juillet 2026, fuseau Europe/Paris.
+- Date de publication : 23 juillet 2026, fuseau Europe/Paris.
 - Dépôt public : `arnaud-wissart-lab/layup-pulse`.
-- Branche candidate :
-  `feature/production-run-report-code-framework`.
-- Version candidate : `0.4.0`, définie dans `Directory.Build.props`.
-- Dernière version publique de référence : `v0.3.0`.
-- SHA candidat : à figer après la validation et la fusion de la pull request.
-- Tag, release GitHub et actif public `v0.4.0` : non créés.
+- Branche source : `main`.
+- Version publiée : `0.4.0`, définie dans `Directory.Build.props`.
+- Version publique précédente : `v0.3.0`.
+- SHA de merge validé : `58a25aac263e3a9cc5e5dc5d65764f3cf0f12a4b`.
+- Source et actif Windows :
+  [release GitHub v0.4.0](https://github.com/arnaud-wissart-lab/layup-pulse/releases/tag/v0.4.0).
 
 Les preuves historiques restent disponibles dans les documents des
 [versions 0.3.0](release-readiness-0.3.0.md) et
 [0.2.2](release-readiness-0.2.2.md). Elles ne sont pas remplacées par cette
-préparation.
+publication.
 
 ## Justification de version
 
@@ -23,7 +23,7 @@ Elle raccorde le socle de rapport à **Historique** et livre l’aperçu WPF
 paginé, l’impression Windows ainsi que l’export XPS. Il ne s’agit donc pas
 d’une correction de type `0.3.1`.
 
-## Périmètre candidat
+## Périmètre publié
 
 - rapport du cycle simulé sélectionné depuis **Historique** ;
 - presenter Desktop testable, sans type WPF dans `HistoryViewModel` ;
@@ -39,10 +39,10 @@ d’une correction de type `0.3.1`.
   CODE Framework hors de `LayupPulse.Desktop/Reporting` dans le code de
   production.
 
-## Validation locale de la candidate
+## Validation avant publication
 
 Les contrôles ci-dessous ont été exécutés sur le contenu de travail après le
-passage à `0.4.0` et ont réellement retourné un code de sortie nul.
+merge dans `main` et ont réellement retourné un code de sortie nul.
 
 | Commande ou contrôle | Résultat |
 | --- | --- |
@@ -63,17 +63,28 @@ l’instance de détails attendue.
 ## Package local de contrôle
 
 - Archive : `artifacts/LayupPulse-win-x64.zip`.
-- Taille : 128 611 970 octets, soit 122,654 Mio.
+- Taille : 128 611 963 octets, soit 122,654 Mio.
 - SHA-256 :
-  `FC252030E52E47F0363E984D3AD6C3648932595582CD1B2B5119078FF3194741`.
+  `AA661F8F321382CC61A21DFDBD2ED8F4A93685FEA42A8E2EBCE1D0A3951D3AD5`.
 - Versions de fichier Desktop et Simulator : `0.4.0.0`.
-- Versions produit Desktop et Simulator : `0.4.0+c04fe0457728`.
+- Versions produit Desktop et Simulator : `0.4.0+58a25aac263e`.
 - Smoke test : Desktop et Simulator autonomes actifs pendant 5 secondes, puis
   arrêtés proprement.
 
-Le package a été créé avant le commit de préparation 0.4.0. Son information de
-version identifie donc le commit parent `c04fe0457728`. Il constitue une preuve
-locale de packaging et de démarrage, pas encore l’actif publiable.
+Le package a été créé depuis le SHA de merge validé, avant le commit de
+finalisation de la publication. Il constitue une preuve locale de packaging et
+de démarrage. L’actif public doit être reconstruit depuis le SHA tagué et son
+empreinte doit être publiée dans les notes de release.
+
+## Validation GitHub Actions
+
+- [workflow de push de la branche 0.4.0](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/30045056075) :
+  réussi ;
+- [workflow de la pull request 0.4.0](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/30045058868) :
+  réussi ;
+- [workflow du merge dans main](https://github.com/arnaud-wissart-lab/layup-pulse/actions/runs/30045305516) :
+  réussi, y compris le packaging, le smoke test Windows x64 et le
+  téléversement de l’archive.
 
 ## Dépendances CODE Framework et notices
 
@@ -114,16 +125,6 @@ d’enregistrement XPS. Aucune capture n’a été créée.
   configurées à 150 % et 200 % ;
 - vérifier une impression physique ou Microsoft Print to PDF uniquement si
   cette sortie est nécessaire à la démonstration.
-
-## Conditions avant publication
-
-1. obtenir une validation locale complète sur la version `0.4.0` ;
-2. obtenir une CI verte sur la branche candidate ;
-3. fusionner la pull request validée dans `main` ;
-4. reconstruire le package Windows autonome depuis le SHA final ;
-5. vérifier les versions des exécutables, la taille et le SHA-256 de l’archive ;
-6. obtenir une CI verte sur le SHA final ;
-7. créer le tag annoté et la release GitHub `v0.4.0` avec l’archive vérifiée.
 
 ## Risques et limites
 
