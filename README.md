@@ -55,6 +55,8 @@ Ce projet n’est ni un contrôleur de machine, ni un système de sécurité, ni
 - Cycle de vie des alarmes couvrant le déclenchement, l’acquittement et la fin de condition, avec historique en mémoire borné.
 - Historique SQLite local et durable pour les résumés de cycles, les alarmes et les agrégats UTC d’une seconde.
 - Vue **Historique** asynchrone et bornée, avec filtre sur l’état final et détails du cycle sélectionné.
+- Fondation de rapport de cycle imprimable et exportable en XPS, encapsulée
+  dans Desktop et non encore raccordée à la vue **Historique**.
 - Tendances ScottPlot limitées par fenêtre temporelle, fréquence de rafraîchissement et nombre de points.
 - Visualisation 3D HelixToolkit/WPF alimentée par la télémétrie regroupée.
 - Tests unitaires, d’architecture, de transport, d’annulation et d’intégration ciblés.
@@ -85,6 +87,7 @@ La colonne **Dépendances** indique les projets de la solution dont dépend dire
 | Application de bureau | WPF sur `net10.0-windows` |
 | Transport interprocessus | ASP.NET Core gRPC, Grpc.Net.Client, Protocol Buffers |
 | Présentation | CommunityToolkit.Mvvm, Generic Host |
+| Documents | CODE.Framework.Wpf.Documents 6.0.0, impression WPF et XPS |
 | Graphiques | ScottPlot.WPF 5 |
 | Visualisation 3D | HelixToolkit.Wpf sur WPF 3D |
 | Persistance | EF Core 10, SQLite et migrations |
@@ -217,7 +220,7 @@ dotnet test LayupPulse.sln -c Release --no-build
 git diff --check
 ```
 
-La suite couvre les transitions du domaine, la validation des recettes, la simulation déterministe, le comportement des défauts, les règles d’alarme, la télémétrie bornée, la sérialisation des reconnexions, les mappings gRPC et l’intégration des processus, l’annulation, le retour des commandes dans les ViewModels, le sens des dépendances entre projets, les migrations SQLite réelles et la persistance après réouverture de la base avec un nouveau contexte.
+La suite couvre les transitions du domaine, la validation des recettes, la simulation déterministe, le comportement des défauts, les règles d’alarme, la télémétrie bornée, la sérialisation des reconnexions, les mappings gRPC et l’intégration des processus, l’annulation, le retour des commandes dans les ViewModels, le sens des dépendances entre projets, les migrations SQLite réelles, la persistance après réouverture de la base avec un nouveau contexte ainsi que la projection, le bornage et la sérialisation XPS du rapport de cycle.
 
 ## Création du paquet
 
@@ -261,11 +264,11 @@ Le paquet est autonome, conserve les dépendances natives, n’utilise pas la pu
 
 ## Décisions d’architecture
 
-Les décisions structurantes sont consignées dans [les comptes rendus de décisions d’architecture](docs/decisions/README.md). Elles couvrent notamment .NET 10, le transport gRPC, la centralisation du cycle de vie de la session, la télémétrie bornée et la reconnexion, le rendu ScottPlot/WPF 3D ainsi que la frontière d’agrégation SQLite.
+Les décisions structurantes sont consignées dans [les comptes rendus de décisions d’architecture](docs/decisions/README.md). Elles couvrent notamment .NET 10, le transport gRPC, la centralisation du cycle de vie de la session, la télémétrie bornée et la reconnexion, le rendu ScottPlot/WPF 3D, la frontière d’agrégation SQLite ainsi que l’adoption sélective de CODE Framework Documents.
 
 ## Limites connues
 
-- L’historique se limite volontairement aux cycles locaux récents et aux détails du cycle sélectionné ; il ne propose ni export, ni authentification, ni base serveur, ni système général de pagination.
+- L’historique se limite volontairement aux cycles locaux récents et aux détails du cycle sélectionné. Le socle de rapport prend en charge l’impression WPF et l’export XPS, mais aucune commande n’est encore exposée dans l’interface et aucun export PDF natif n’est promis.
 - Le point d’accès gRPC local utilise HTTP/2 sans chiffrement et ne dispose ni d’authentification ni de durcissement pour un déploiement distant.
 - Le paquet Windows n’est pas signé et peut déclencher un avertissement SmartScreen.
 - Les graphiques restaurent actuellement une ressource WPF transitive que NuGet signale comme ciblant .NET Framework ; les tests de démarrage réduisent le risque sans supprimer cette dépendance.
