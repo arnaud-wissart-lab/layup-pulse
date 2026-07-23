@@ -57,9 +57,8 @@ P0 produces a coherent local demonstration on Windows with a separate simulator 
 
 P1 improves presentation and distribution without weakening the P0 boundaries.
 
-- Livré sur la branche de fonctionnalité postérieure à `v0.3.0` : premier
-  rapport borné du cycle sélectionné, avec aperçu WPF, pagination, impression
-  Windows et export XPS depuis **Historique**.
+- Livré en `0.4.0` : premier rapport borné du cycle sélectionné, avec aperçu
+  WPF, pagination, impression Windows et export XPS depuis **Historique**.
 - Refine the dark industrial design system, spacing, typography, iconography, states, and transitions.
 - Upgrade charts with clear units, thresholds, cursor inspection, bounded time windows, and export-ready snapshots.
 - Create a polished but fictional 3D cell visualization with measured frame time and a fallback reduced-motion mode.

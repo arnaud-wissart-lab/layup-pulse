@@ -3,8 +3,7 @@
 ## Statut
 
 Accepté pour le rapport de cycle dont le socle est publié en 0.3.0 et dont
-l’intégration à **Historique** est livrée sur la branche de fonctionnalité
-postérieure.
+l’intégration à **Historique** est livrée en 0.4.0.
 
 ## Contexte
 

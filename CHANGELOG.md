@@ -4,6 +4,8 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+## [0.4.0] — 2026-07-23
+
 ### Ajouté
 
 - Aperçu WPF accessible depuis **Historique**, avec en-tête, pied de page,
@@ -110,7 +112,8 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...v0.2.1
