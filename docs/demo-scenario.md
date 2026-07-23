@@ -31,7 +31,49 @@ Avant une présentation, vérifier que le port `5057` est libre, que l’afficha
 
 Après le parcours principal, fermer uniquement Desktop, le relancer, se reconnecter si nécessaire, puis rouvrir **Historique**. Le run précédent doit rester visible depuis `%LOCALAPPDATA%\LayupPulse\layuppulse.db`. Les détails montrent les alarmes et agrégats d’une seconde ; aucun échantillon brut à 20 Hz n’est stocké.
 
-Présenter cette capacité comme un historique local de démonstration. Elle ne fournit ni export, ni authentification, ni base serveur, ni garantie de traçabilité industrielle validée.
+Présenter cette capacité comme un historique local de démonstration.
+L’interface opérateur ne fournit encore aucune commande d’impression ou
+d’export. Le socle documentaire XPS se valide séparément selon le scénario
+technique ci-dessous ; il ne fournit ni export PDF natif, ni authentification,
+ni base serveur, ni garantie de traçabilité industrielle validée.
+
+## Validation technique du rapport de cycle
+
+Cette validation couvre la fondation documentaire avant son raccordement à
+`HistoryView`. Elle n’ajoute ni fenêtre d’aperçu ni commande visible dans
+l’application.
+
+Depuis la racine du dépôt :
+
+```powershell
+dotnet restore LayupPulse.sln
+dotnet build LayupPulse.sln -c Release --no-restore
+dotnet test tests/LayupPulse.Tests/LayupPulse.Tests.csproj `
+  -c Release `
+  --no-build `
+  --filter "FullyQualifiedName~ProductionRunReport"
+```
+
+Résultat attendu :
+
+1. les six tests `ProductionRunReport` réussissent sans test ignoré ;
+2. la projection restitue l’identifiant, la recette, la référence pièce, les
+   dates, la durée, l’état final, la progression, les indicateurs, la santé
+   minimale et les métadonnées de génération ;
+3. les buckets désordonnés produisent une période, un total d’échantillons et
+   des plages min–max corrects sans être recopiés dans le modèle de rapport ;
+4. l’absence de fin de cycle ou d’agrégats reste explicite ;
+5. seules les 100 premières alarmes sont détaillées et le nombre d’alarmes
+   omises est conservé ;
+6. la factory WPF crée un `FlowDocumentEx` avec avertissement, en-tête, pied de
+   page, numérotation et filigrane ;
+7. un fichier XPS temporaire non vide est réellement sérialisé, contrôlé puis
+   supprimé par le test.
+
+Ce scénario valide la structure, la pagination et la sérialisation XPS, mais ne
+permet pas encore une inspection visuelle depuis l’application. Cette
+inspection deviendra pertinente lorsque `HistoryView` exposera une commande
+d’aperçu ou d’export dans un incrément distinct.
 
 ## Coupure de communication
 

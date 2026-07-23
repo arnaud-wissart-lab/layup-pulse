@@ -24,7 +24,7 @@ public sealed class VersionConsistencyTests
             new UnusedSessionService(),
             new DemoModeOptions());
 
-        Assert.Equal("0.2.2", version);
+        Assert.Equal("0.3.0", version);
         Assert.Equal(version, GetThreePartVersion(typeof(DiagnosticsViewModel).Assembly));
         Assert.Equal(version, GetThreePartVersion(typeof(SimulatorHost).Assembly));
         Assert.Equal(version, diagnostics.ApplicationVersion);
@@ -47,8 +47,8 @@ public sealed class VersionConsistencyTests
         Assert.DoesNotContain("[string]$Version =", packaging, StringComparison.Ordinal);
         Assert.Contains("run: ./scripts/package-demo.ps1", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("package-demo.ps1 -Version", workflow, StringComparison.Ordinal);
-        Assert.Contains("## [0.2.2]", changelog, StringComparison.Ordinal);
-        Assert.Contains("Version : `0.2.2`", readiness, StringComparison.Ordinal);
+        Assert.Contains("Version candidate prévue : `0.3.0`", changelog, StringComparison.Ordinal);
+        Assert.Contains("Version candidate : `0.3.0`", readiness, StringComparison.Ordinal);
     }
 
     private static string GetThreePartVersion(System.Reflection.Assembly assembly) =>

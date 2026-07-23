@@ -4,6 +4,8 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="CODE.Framework.Wpf" Version="6.0.0" />
+    <PackageVersion Include="CODE.Framework.Wpf.Documents" Version="6.0.0" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
     <PackageVersion Include="HelixToolkit.Wpf" Version="3.1.2" />
