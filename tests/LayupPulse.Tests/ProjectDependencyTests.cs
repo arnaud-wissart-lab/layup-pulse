@@ -54,6 +54,49 @@ public sealed class ProjectDependencyTests
         }
     }
 
+    [Fact]
+    public void CodeFrameworkPackagesRemainPinnedAndConfinedToDesktopDocuments()
+    {
+        string repositoryRoot = FindRepositoryRoot();
+        XDocument packageVersions = XDocument.Load(
+            Path.Combine(repositoryRoot, "Directory.Packages.props"));
+        Dictionary<string, string?> codeFrameworkVersions = packageVersions
+            .Descendants("PackageVersion")
+            .Where(element => ((string?)element.Attribute("Include"))?
+                .StartsWith("CODE.Framework.", StringComparison.Ordinal) == true)
+            .ToDictionary(
+                element => (string)element.Attribute("Include")!,
+                element => (string?)element.Attribute("Version"),
+                StringComparer.Ordinal);
+
+        Assert.Equal(2, codeFrameworkVersions.Count);
+        Assert.Equal("6.0.0", codeFrameworkVersions["CODE.Framework.Wpf"]);
+        Assert.Equal("6.0.0", codeFrameworkVersions["CODE.Framework.Wpf.Documents"]);
+
+        foreach (string projectName in AllowedProjectReferences.Keys)
+        {
+            string projectFile = FindProjectFile(repositoryRoot, projectName);
+            XDocument project = XDocument.Load(projectFile);
+            string[] directReferences = project
+                .Descendants("PackageReference")
+                .Select(element => (string?)element.Attribute("Include"))
+                .Where(package => package?.StartsWith(
+                    "CODE.Framework.",
+                    StringComparison.Ordinal) == true)
+                .Select(package => package!)
+                .ToArray();
+
+            if (projectName == "LayupPulse.Desktop")
+            {
+                Assert.Equal(["CODE.Framework.Wpf.Documents"], directReferences);
+            }
+            else
+            {
+                Assert.Empty(directReferences);
+            }
+        }
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

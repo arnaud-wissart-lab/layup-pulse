@@ -7,6 +7,7 @@
     <AssemblyName>LayupPulse.Desktop</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="CODE.Framework.Wpf.Documents" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="HelixToolkit.Wpf" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />

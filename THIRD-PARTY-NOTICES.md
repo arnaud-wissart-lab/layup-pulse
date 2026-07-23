@@ -6,6 +6,8 @@ LayupPulse est distribué sous licence MIT. Les dépendances directes conservent
 
 | Package | Version | Licence | Usage principal |
 | --- | --- | --- | --- |
+| CODE.Framework.Wpf | 6.0.0 | MIT | Socle WPF transitif requis par le module Documents ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
+| CODE.Framework.Wpf.Documents | 6.0.0 | MIT | Documents imprimables et export XPS ; [dépôt officiel](https://github.com/CODEFramework/CODEFrameworkWPF) |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | ViewModels et commandes WPF |
 | Google.Protobuf | 3.35.1 | BSD-3-Clause | Sérialisation des contrats |
 | Grpc.AspNetCore | 2.80.0 | Apache-2.0 | Serveur gRPC du simulateur |
@@ -38,4 +40,4 @@ dotnet list LayupPulse.sln package --include-transitive
 dotnet list LayupPulse.sln package --vulnerable --include-transitive
 ```
 
-Références : [NuGet](https://www.nuget.org/), [Community Toolkit](https://github.com/CommunityToolkit/dotnet), [Protocol Buffers](https://github.com/protocolbuffers/protobuf), [gRPC for .NET](https://github.com/grpc/grpc-dotnet), [Helix Toolkit](https://github.com/helix-toolkit/helix-toolkit), [Entity Framework Core](https://github.com/dotnet/efcore), [ScottPlot](https://github.com/ScottPlot/ScottPlot), [xUnit.net](https://github.com/xunit/xunit).
+Références : [NuGet](https://www.nuget.org/), [CODE Framework](https://github.com/CODEFramework/CODEFrameworkWPF), [Community Toolkit](https://github.com/CommunityToolkit/dotnet), [Protocol Buffers](https://github.com/protocolbuffers/protobuf), [gRPC for .NET](https://github.com/grpc/grpc-dotnet), [Helix Toolkit](https://github.com/helix-toolkit/helix-toolkit), [Entity Framework Core](https://github.com/dotnet/efcore), [ScottPlot](https://github.com/ScottPlot/ScottPlot), [xUnit.net](https://github.com/xunit/xunit).
