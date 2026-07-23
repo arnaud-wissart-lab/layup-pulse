@@ -4,16 +4,8 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
-Version candidate prévue : `0.3.0`.
-
 ### Ajouté
 
-- Rapport de cycle dans `LayupPulse.Desktop`, fondé sur
-  `CODE.Framework.Wpf.Documents` 6.0.0 et encapsulé derrière un modèle
-  immuable, une projection pure et une factory `FlowDocumentEx`.
-- Rapport borné comprenant les métadonnées du cycle, les indicateurs
-  synthétiques, un résumé statistique des agrégats et au plus 100 alarmes
-  détaillées.
 - Aperçu WPF accessible depuis **Historique**, avec en-tête, pied de page,
   pagination, filigrane et avertissement explicite sur les données simulées.
 - Impression par le dialogue Windows et export XPS natif ; la sortie PDF reste
@@ -34,6 +26,24 @@ Version candidate prévue : `0.3.0`.
 - Décision d’architecture, notices tierces et scénario de validation technique
   du rapport, avec limites explicites sur les données simulées, le format XPS
   et l’absence d’export PDF natif.
+
+## [0.3.0] — 2026-07-23
+
+### Ajouté
+
+- Fondation de rapport de cycle dans `LayupPulse.Desktop`, fondée sur
+  `CODE.Framework.Wpf.Documents` 6.0.0 et encapsulée derrière un modèle
+  immuable, une projection pure et une factory `FlowDocumentEx`.
+- Rapport borné comprenant les métadonnées du cycle, les indicateurs
+  synthétiques, un résumé statistique des agrégats et au plus 100 alarmes
+  détaillées.
+- Impression WPF et export XPS avec en-tête, pied de page, pagination,
+  filigrane et avertissement explicite sur les données simulées.
+
+### Documentation
+
+- Décision d’architecture, notices tierces et scénario de validation technique
+  du rapport, sans raccordement à `HistoryView` ni promesse d’export PDF natif.
 
 ## [0.2.2] — 2026-07-13
 
@@ -100,7 +110,8 @@ Version candidate prévue : `0.3.0`.
 - Retrait des abstractions de persistance sans implémentation ni consommateur.
 - Documentation explicite des limites de persistance et de préparation à la publication.
 
-[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.2...HEAD
+[Non publié]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/arnaud-wissart-lab/layup-pulse/compare/v0.1.0...v0.2.0
