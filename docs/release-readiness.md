@@ -8,88 +8,137 @@
   `feature/production-run-report-code-framework`.
 - Version candidate : `0.3.0`, définie dans `Directory.Build.props`.
 - Dernière version publique de référence : `v0.2.2`.
-- SHA candidat : à figer après fusion dans `main` et validation de la CI.
+- SHA candidat : à figer après le commit documentaire et la validation de la CI.
 - Tag, release GitHub et actif public `v0.3.0` : non créés.
 
-Les preuves historiques de la version précédente restent disponibles dans
+Les preuves historiques de la version précédente restent inchangées dans
 [l’état de préparation 0.2.2](release-readiness-0.2.2.md).
 
 ## Justification de version
 
 La version `0.3.0` constitue un incrément fonctionnel par rapport à `0.2.2`.
-Elle ajoute deux dépendances d’exécution CODE Framework 6.0.0, un modèle de
-rapport, une projection statistique bornée, un document imprimable et une
-sérialisation XPS. Il ne s’agit donc pas d’une correction compatible de type
-`0.2.3`.
-
-La capacité reste préparatoire : elle n’est pas encore raccordée à
-`HistoryView` et ne modifie ni le shell, ni le thème, ni la navigation, ni
-l’architecture MVVM existante.
+Elle livre le premier rapport du cycle sélectionné dans **Historique**, avec un
+aperçu WPF paginé, l’impression Windows et l’export XPS. Elle ajoute la
+référence directe `CODE.Framework.Wpf.Documents` 6.0.0 et sa dépendance
+transitive `CODE.Framework.Wpf` 6.0.0. Il ne s’agit donc pas d’une correction
+compatible de type `0.2.3`.
 
 ## Périmètre candidat
 
-- adoption directe de `CODE.Framework.Wpf.Documents` 6.0.0 dans Desktop ;
-- épinglage transitif de `CODE.Framework.Wpf` 6.0.0 ;
 - modèle de rapport immuable sans type WPF ;
-- projection pure de `ProductionRunHistoryDetails` avec 100 alarmes détaillées
-  au maximum ;
-- synthèse des buckets sans copie des 3 600 agrégats dans le rapport ;
-- `FlowDocumentEx` avec avertissement, en-tête, pied de page, numérotation et
-  filigrane ;
-- impression WPF et export XPS uniquement, sans promesse de PDF natif ;
-- ADR, notices tierces, changelog et scénario de validation technique.
+- projection bornée de `ProductionRunHistoryDetails`, avec 100 alarmes
+  détaillées au maximum et une synthèse des agrégats ;
+- `FlowDocumentEx` avec avertissement, en-tête, pied de page, numérotation,
+  filigrane et pinceaux partagés gelés ;
+- presenter Desktop testable, sans type WPF dans `HistoryViewModel` ;
+- protection contre les réponses asynchrones périmées ou discordantes ;
+- fenêtre d’aperçu propriétaire, redimensionnable et accessible au clavier ;
+- impression par le dialogue Windows et export XPS par `PrintHelper.SaveAsXps` ;
+- aucun export PDF natif ; un PDF dépend d’une imprimante Windows telle que
+  Microsoft Print to PDF ;
+- aucune comparaison multi-cycles, aucune extension du shell et aucun usage de
+  CODE Framework hors de `LayupPulse.Desktop/Reporting` dans le code de
+  production.
 
 ## Validation locale
 
-| Commande ou contrôle | État |
+Toutes les commandes ci-dessous ont réellement retourné un code de sortie nul
+sur le contenu de travail audité.
+
+| Commande ou contrôle | Résultat |
 | --- | --- |
 | `dotnet restore LayupPulse.sln` | Réussi ; seul l’avertissement `NU1701` connu subsiste |
 | `dotnet format LayupPulse.sln --verify-no-changes --no-restore` | Réussi ; aucun changement requis |
 | `dotnet build LayupPulse.sln -c Release --no-restore` | Réussi ; 0 erreur et 3 occurrences de `NU1701`, dont le projet WPF temporaire |
-| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi ; 131 tests, 0 échec, 0 test ignoré |
-| Tests ciblés `ProductionRunReport` | Réussis ; 6 tests, 0 échec, 0 test ignoré |
-| `scripts/package-demo.ps1` | Réussi ; publication autonome, smoke test de 5 secondes et archive ZIP |
-| `git diff --check` | Réussi ; aucun défaut d’espace blanc |
+| `dotnet test LayupPulse.sln -c Release --no-build` | Réussi ; 138 tests, 0 échec, 0 test ignoré |
+| Tests ciblés rapport, concurrence, dépendances et XAML | Réussis ; 21 tests, 0 échec, 0 test ignoré |
+| `scripts/run-demo.ps1 -SmokeTest -SmokeTestDurationSeconds 5` | Réussi ; Desktop et Simulator actifs pendant 5 secondes puis arrêtés |
+| `scripts/package-demo.ps1` | Réussi ; publication autonome, smoke test packagé de 5 secondes et archive ZIP |
+| `dotnet list LayupPulse.sln package --vulnerable --include-transitive` | Réussi ; aucun package vulnérable signalé par les sources actuelles |
+| `git diff --check` | Réussi ; avertissement informatif de normalisation CRLF/LF pour `docs/ui-specification.md` |
 
-Le test WPF dédié crée un XPS temporaire, vérifie qu’il est non vide puis le
-supprime. Aucun package de test supplémentaire n’est utilisé pour le contexte
-STA.
+Le test WPF dédié sérialise réellement un XPS temporaire non vide puis le
+supprime. Les tests de concurrence maintiennent la commande désactivée sans
+détails complets, rejettent une réponse périmée ou discordante et vérifient que
+le presenter reçoit exactement l’instance attendue.
 
-### Package local de contrôle
+## Dépendances CODE Framework et notices
+
+Le graphe restauré contient une seule référence directe
+`CODE.Framework.Wpf.Documents` 6.0.0 dans `LayupPulse.Desktop`.
+`CODE.Framework.Wpf` 6.0.0 est uniquement transitif. Un test d’architecture
+vérifie les références de packages et recherche désormais tout usage du
+namespace `CODE.Framework` en dehors de `LayupPulse.Desktop/Reporting`.
+
+Les fichiers `.nuspec` restaurés pour les deux packages déclarent la licence
+MIT et ciblent `net10.0-windows7.0`. `THIRD-PARTY-NOTICES.md` reflète ces
+versions, licences et usages.
+
+## Package local de contrôle
 
 - Archive : `artifacts/LayupPulse-win-x64.zip`.
-- Taille : 128 609 059 octets, soit 122,651 Mio.
+- Taille : 128 611 994 octets, soit 122,654 Mio.
 - SHA-256 :
-  `29c8581043bf824c414d173416d963555951e764f6980df257aaa92d085d0a62`.
+  `BA93CB932E98313961DC38104E1099F624596F1489A2EA66EEBE2597AA96585B`.
 - Versions de fichier Desktop et Simulator : `0.3.0.0`.
-- Versions produit Desktop et Simulator : `0.3.0+a7c4606972bf`.
+- Versions produit Desktop et Simulator : `0.3.0+ca1a371fe617`.
 - Smoke test : Desktop et Simulator autonomes actifs pendant 5 secondes, puis
   arrêtés proprement.
 
-Ce package prouve la compatibilité locale du contenu de travail, mais il a été
-créé avant le commit de préparation `0.3.0`. Son SHA-256 n’est donc pas destiné
-à la publication. L’archive devra être reconstruite depuis le SHA final validé
-par la CI.
+Le package a été créé depuis le contenu de travail après l’audit, avant le
+commit documentaire final. Son information de version identifie donc le commit
+parent `ca1a371fe617`. Il constitue une preuve locale de packaging et de
+démarrage, pas un actif publiable. La CI devra reconstruire l’archive depuis le
+SHA poussé.
+
+## Inspection WPF réellement effectuée
+
+La session de contrôle expose 120 DPI, soit 125 %, et une surface logique
+2048 × 1152. Dans la fenêtre maximisée, les contrôles suivants ont été
+observés :
+
+- **Historique** filtré sur **En cours**, sans résultat ni sélection ;
+- message vide explicite et commande **Rapport du cycle** désactivée ;
+- retour au filtre complet, sélection et chargement d’un cycle ;
+- détails d’alarme visibles et commande de rapport réactivée ;
+- noms d’automatisation indiquant explicitement les cycles et données simulés.
+
+Une passe antérieure sur le commit d’aperçu `ca1a371` avait réellement vérifié
+la fenêtre propriétaire, les deux pages du document, le focus clavier,
+l’annulation du dialogue d’impression et l’annulation du dialogue
+d’enregistrement XPS. Après le durcissement final, une activité utilisateur a
+interrompu la reprise de l’aperçu. Aucune capture n’a été créée et les
+contrôles interrompus ne sont pas déclarés réussis sur le contenu final.
+
+## Validations manuelles restantes
+
+- ouvrir l’aperçu final et parcourir ses deux pages ;
+- annuler à nouveau le dialogue d’impression sur le contenu final ;
+- enregistrer un fichier XPS depuis l’interface puis l’ouvrir avec un lecteur
+  XPS installé ;
+- vérifier le rendu à 1280 × 720 et sur des sessions Windows réellement
+  configurées à 150 % et 200 % ;
+- vérifier une impression physique ou Microsoft Print to PDF uniquement si
+  cette sortie est nécessaire à la démonstration.
 
 ## Conditions avant publication
 
-1. fusionner la branche validée dans `main` sans modifier le périmètre ;
-2. obtenir une CI verte sur le SHA destiné au tag ;
-3. reconstruire le package Windows autonome depuis ce SHA ;
-4. vérifier les versions Desktop et Simulator ainsi que le smoke test packagé ;
-5. figer la taille et le SHA-256 de l’archive ;
+1. obtenir une CI verte sur le SHA poussé de la draft PR ;
+2. compléter les validations manuelles restantes sur un bureau Windows
+   disponible ;
+3. fusionner la branche validée dans `main` sans modifier le périmètre ;
+4. reconstruire le package Windows autonome depuis le SHA destiné au tag ;
+5. figer la taille et le SHA-256 de l’archive publiable ;
 6. déplacer les notes de `Non publié` vers la section `0.3.0` du changelog ;
 7. créer ensuite seulement le tag annoté et la release GitHub `v0.3.0`.
 
 ## Risques et limites résiduels
 
-- aucune commande d’impression ou d’export n’est encore visible dans
-  `HistoryView` ;
-- l’export XPS est couvert par un test de sérialisation, mais aucune inspection
-  visuelle opérateur n’est encore possible dans l’application ;
-- aucun export PDF natif n’est fourni ou promis ;
+- l’export natif reste XPS ; aucun export PDF natif n’est fourni ou promis ;
+- le package Windows demeure non signé ;
 - l’avertissement `NU1701` connu reste lié à
   `ScottPlot.WPF → SkiaSharp.Views.WPF`, indépendamment de CODE Framework ;
-- le package Windows demeure non signé ;
-- LayupPulse reste un démonstrateur logiciel utilisant des données simulées,
-  impropre au pilotage d’une machine réelle et à toute fonction de sûreté.
+- les rapports comparent un seul cycle ; les comparaisons multi-cycles restent
+  à réaliser ;
+- LayupPulse utilise uniquement des données simulées et reste impropre au
+  pilotage d’une machine réelle ou à toute fonction de sûreté.

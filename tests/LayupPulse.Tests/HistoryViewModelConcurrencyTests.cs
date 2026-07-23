@@ -156,6 +156,29 @@ public sealed class HistoryViewModelConcurrencyTests
         Assert.Same(expectedDetails, presenter.ShownDetails);
     }
 
+    [Fact]
+    public async Task ShowReportCommandStaysDisabledWhenDetailsDoNotMatchTheSelectedRun()
+    {
+        DelayedHistoryQuery query = new();
+        RecordingReportPresenter presenter = new();
+        HistoryViewModel viewModel = new(query, presenter);
+        ProductionRunHistoryItem selectedRun = CreateRun("Cycle sélectionné", ProductionRunStatus.Completed);
+        ProductionRunHistoryItem differentRun = CreateRun("Autre cycle", ProductionRunStatus.Faulted);
+        RunRequest initial = await query.NextRunRequestAsync();
+        initial.Complete([selectedRun]);
+        await initial.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        DetailRequest detailsRequest = await query.NextDetailRequestAsync();
+
+        detailsRequest.Complete(CreateDetails(differentRun, "discordante"));
+        await detailsRequest.Finished.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.False(viewModel.ShowReportCommand.CanExecute(null));
+        viewModel.ShowReportCommand.Execute(null);
+        Assert.False(presenter.WasShown);
+        Assert.Empty(viewModel.SelectedRunAlarms);
+        Assert.Empty(viewModel.SelectedRunTelemetry);
+    }
+
     private static async Task CompleteInitialRefreshAsync(
         DelayedHistoryQuery query,
         HistoryViewModel viewModel,

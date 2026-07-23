@@ -116,7 +116,7 @@ public sealed class WpfMarkupRegressionTests
         Assert.Equal("{Binding ShowReportCommand}", (string?)reportButton.Attribute("Command"));
         Assert.Contains("_", (string?)reportButton.Attribute("Content"), StringComparison.Ordinal);
         Assert.Equal(
-            "Afficher le rapport du cycle sélectionné",
+            "Afficher le rapport du cycle simulé sélectionné",
             (string?)reportButton.Attribute(Automation + "AutomationProperties.Name"));
         Assert.False(string.IsNullOrWhiteSpace(
             (string?)reportButton.Attribute(Automation + "AutomationProperties.HelpText")));
@@ -124,6 +124,11 @@ public sealed class WpfMarkupRegressionTests
         Assert.Contains(
             reportButton.Parent!.Elements(Presentation + "Button"),
             button => (string?)button.Attribute("Content") == "Actualiser");
+        XElement runsGrid = Assert.Single(
+            history.Descendants(Presentation + "DataGrid"),
+            element => (string?)element.Attribute(Automation + "AutomationProperties.Name") ==
+                "Exécutions simulées persistées");
+        Assert.NotNull(runsGrid);
     }
 
     [Fact]
@@ -137,6 +142,10 @@ public sealed class WpfMarkupRegressionTests
             "ProductionRunReportWindow.xaml");
         XDocument preview = XDocument.Load(previewPath);
 
+        Assert.Equal("620", (string?)preview.Root?.Attribute("Height"));
+        Assert.Equal(
+            "Aperçu du rapport de cycle simulé sélectionné",
+            (string?)preview.Root?.Attribute(Automation + "AutomationProperties.Name"));
         Assert.Empty(preview.Descendants(Presentation + "DataGrid"));
         XElement reader = Assert.Single(preview.Descendants(Presentation + "FlowDocumentReader"));
         Assert.Equal(

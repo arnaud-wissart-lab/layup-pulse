@@ -45,6 +45,7 @@ public sealed class ProductionRunReportFlowDocumentFactoryTests
 
             Assert.Equal(report.Title, document.Title);
             Assert.Equal(Brushes.White, document.Background);
+            Assert.True(document.Foreground.IsFrozen);
             Assert.IsType<Grid>(document.PageHeader);
             Grid footer = Assert.IsType<Grid>(document.PageFooter);
             TextBlock pagination = Assert.IsType<TextBlock>(footer.Children[1]);

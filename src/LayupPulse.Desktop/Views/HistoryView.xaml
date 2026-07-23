@@ -47,7 +47,7 @@
                 ToolTip="Ouvre l’aperçu imprimable lorsque les détails complets du cycle sélectionné sont chargés."
                 automation:AutomationProperties.AutomationId="HistoryShowReportButton"
                 automation:AutomationProperties.HelpText="Disponible uniquement lorsque les détails complets du cycle sélectionné sont chargés."
-                automation:AutomationProperties.Name="Afficher le rapport du cycle sélectionné" />
+                automation:AutomationProperties.Name="Afficher le rapport du cycle simulé sélectionné" />
       </WrapPanel>
     </Grid>
 
@@ -67,7 +67,7 @@
               ItemsSource="{Binding Runs}"
               SelectedItem="{Binding SelectedRun}"
               Style="{StaticResource IndustrialDataGridStyle}"
-              automation:AutomationProperties.Name="Exécutions de production persistées">
+              automation:AutomationProperties.Name="Exécutions simulées persistées">
       <DataGrid.Columns>
         <DataGridTextColumn Width="155" Binding="{Binding Started}" Header="Début" />
         <DataGridTextColumn Width="155" Binding="{Binding Ended}" Header="Fin" />

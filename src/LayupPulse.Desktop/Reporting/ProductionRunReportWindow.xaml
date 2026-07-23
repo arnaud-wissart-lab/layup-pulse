@@ -2,9 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:automation="clr-namespace:System.Windows.Automation;assembly=PresentationCore"
-        Title="Aperçu du rapport de cycle"
+        Title="Aperçu du rapport de cycle simulé"
         Width="1000"
-        Height="680"
+        Height="620"
         MinWidth="640"
         MinHeight="420"
         WindowStartupLocation="CenterOwner"
@@ -13,7 +13,7 @@
         Background="{StaticResource WindowBackgroundBrush}"
         Foreground="{StaticResource PrimaryTextBrush}"
         automation:AutomationProperties.AutomationId="ProductionRunReportPreviewWindow"
-        automation:AutomationProperties.Name="Aperçu du rapport de cycle sélectionné">
+        automation:AutomationProperties.Name="Aperçu du rapport de cycle simulé sélectionné">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
