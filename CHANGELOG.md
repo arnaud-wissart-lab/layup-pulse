@@ -4,6 +4,24 @@ Les modifications notables de ce projet sont consignées dans ce fichier. Le for
 
 ## [Non publié]
 
+Version candidate prévue : `0.3.0`.
+
+### Ajouté
+
+- Fondation de rapport de cycle dans `LayupPulse.Desktop`, fondée sur
+  `CODE.Framework.Wpf.Documents` 6.0.0 et encapsulée derrière un modèle
+  immuable, une projection pure et une factory `FlowDocumentEx`.
+- Rapport borné comprenant les métadonnées du cycle, les indicateurs
+  synthétiques, un résumé statistique des agrégats et au plus 100 alarmes
+  détaillées.
+- Impression WPF et export XPS avec en-tête, pied de page, pagination,
+  filigrane et avertissement explicite sur les données simulées.
+
+### Documentation
+
+- Décision d’architecture, notices tierces et scénario de validation technique
+  du rapport, sans raccordement à `HistoryView` ni promesse d’export PDF natif.
+
 ## [0.2.2] — 2026-07-13
 
 ### Corrigé

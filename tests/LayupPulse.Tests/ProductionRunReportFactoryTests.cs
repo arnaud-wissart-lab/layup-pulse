@@ -36,7 +36,7 @@ public sealed class ProductionRunReportFactoryTests
         ProductionRunReport report = ProductionRunReportFactory.Create(
             details,
             GeneratedAt,
-            "0.2.2");
+            "0.3.0");
 
         Assert.Equal(ProductionRunReportFactory.ReportTitle, report.Title);
         Assert.Equal(
@@ -58,7 +58,7 @@ public sealed class ProductionRunReportFactoryTests
         Assert.Equal(64.5, report.MinimumProcessHealthPercentage);
         Assert.Null(report.TelemetrySummary);
         Assert.Equal(GeneratedAt, report.GeneratedAt);
-        Assert.Equal("0.2.2", report.ApplicationVersion);
+        Assert.Equal("0.3.0", report.ApplicationVersion);
         Assert.Equal(0, report.OmittedAlarmCount);
 
         AlarmHistoryItem projectedAlarm = Assert.Single(report.DetailedAlarms);
@@ -115,7 +115,7 @@ public sealed class ProductionRunReportFactoryTests
         ProductionRunReport report = ProductionRunReportFactory.Create(
             details,
             GeneratedAt,
-            "0.2.2");
+            "0.3.0");
 
         ProductionRunReportTelemetrySummary summary =
             Assert.IsType<ProductionRunReportTelemetrySummary>(report.TelemetrySummary);
@@ -142,7 +142,7 @@ public sealed class ProductionRunReportFactoryTests
         ProductionRunReport report = ProductionRunReportFactory.Create(
             details,
             GeneratedAt,
-            "0.2.2");
+            "0.3.0");
 
         Assert.Null(report.EndedAt);
         Assert.Null(report.Duration);
@@ -168,7 +168,7 @@ public sealed class ProductionRunReportFactoryTests
         ProductionRunReport report = ProductionRunReportFactory.Create(
             details,
             GeneratedAt,
-            "0.2.2");
+            "0.3.0");
 
         Assert.Equal(105, report.AlarmCount);
         Assert.Equal(ProductionRunReportFactory.MaximumDetailedAlarmCount, report.DetailedAlarms.Length);
@@ -194,7 +194,7 @@ public sealed class ProductionRunReportFactoryTests
         ProductionRunReport report = ProductionRunReportFactory.Create(
             details,
             GeneratedAt,
-            "0.2.2");
+            "0.3.0");
 
         Assert.Equal(150, report.AlarmCount);
         Assert.Equal(80, report.DetailedAlarms.Length);

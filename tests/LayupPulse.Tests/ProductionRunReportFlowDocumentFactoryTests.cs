@@ -39,7 +39,7 @@ public sealed class ProductionRunReportFlowDocumentFactoryTests
             ProductionRunReport report = ProductionRunReportFactory.Create(
                 details,
                 startedAt.AddMinutes(15),
-                "0.2.2");
+                "0.3.0");
             FlowDocumentEx document = ProductionRunReportFlowDocumentFactory.Create(report);
 
             Assert.Equal(report.Title, document.Title);
